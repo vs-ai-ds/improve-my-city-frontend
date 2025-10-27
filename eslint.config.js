@@ -1,3 +1,7 @@
+// File: eslint.config.js
+// Project: improve-my-city-frontend
+// Auto-added for reference
+
 import js from '@eslint/js'
 import globals from 'globals'
 import reactHooks from 'eslint-plugin-react-hooks'

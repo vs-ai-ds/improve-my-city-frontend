@@ -1,14 +1,26 @@
-function App() {
+// File: src\App.tsx
+// Project: improve-my-city-frontend
+// Auto-added for reference
+
+import { Outlet } from "react-router-dom";
+import Header from "./components/layout/Header";
+import Footer from "./components/layout/Footer";
+import ReportFab from "./components/report/ReportFab";
+import ChatMini from "./components/ChatMini"
+import "./theme.css";
+
+export default function App() {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100">
-      <h1 className="text-4xl font-bold text-blue-800">
-        Tailwind CSS is working! 🚀
-      </h1>
-      <p className="mt-4 text-lg text-gray-700">
-        If you see blue bold text on a gray background, Tailwind is active.
-      </p>
+    <div className="min-h-dvh flex flex-col bg-[radial-gradient(1000px_500px_at_50%_-10%,rgba(59,130,246,0.08),transparent),linear-gradient(to_bottom,white,rgba(255,255,255,0.9))]">
+      <Header />
+      <main className="flex-1">
+        <div className="mx-auto max-w-7xl px-4 py-6">
+          <Outlet />
+        </div>
+      </main>
+      <ReportFab />
+      <ChatMini />
+      <Footer />
     </div>
   );
 }
-
-export default App;
