@@ -10,12 +10,18 @@ export interface Issue {
   description: string;
   status: "pending" | "in_progress" | "resolved";
   category: string;
-  state_code: string;
-  country: string;
-  lat: number;
-  lng: number;
+  state_code?: string | null;
+  country?: string | null;
+  lat?: number | null;
+  lng?: number | null;
   created_at: string;
   created_by_email?: string;
+  address?: string;
+  photos?: string[];
+  creator_name?: string;
+  creator_email?: string;
+  creator?: { name?: string; email?: string };
+  assigned_to_id?: number | null;
 }
 
 export async function listIssues(params: Record<string, any>) {

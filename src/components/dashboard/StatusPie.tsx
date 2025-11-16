@@ -1,5 +1,5 @@
 // File: src/components/dashboard/StatusPie.tsx
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend, LabelList } from "recharts";
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 
 const capitalize = (str: string) => str.charAt(0).toUpperCase() + str.slice(1).replace(/_/g, " ");
 

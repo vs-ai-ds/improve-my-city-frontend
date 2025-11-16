@@ -101,7 +101,6 @@ export default function HomePage() {
   const pageSize = 12;
 
   const { user } = useAuth();
-  const isLoggedIn = !!user;
   const isTeam = !!user && ["staff", "admin", "super_admin"].includes(user.role);
 
   const { openWith: openReportModal } = useReportModal();
@@ -145,7 +144,7 @@ export default function HomePage() {
     refetchOnWindowFocus: false,
   });
 
-  const { data: activity } = useQuery({
+  useQuery({
     queryKey: ["stats:recent-activity"],
     queryFn: async () => (await api.get("/issues/stats/recent-activity", { params: { limit: 20 } })).data as Array<{ issue_id: number; kind: "created" | "in_progress" | "resolved"; at: string; title: string; address: string; }>,
     refetchInterval: 5 * 60 * 1000,
@@ -209,7 +208,7 @@ export default function HomePage() {
     return data;
   }, [summary]);
 
-  const typeBarData = useMemo(() => {
+  useMemo(() => {
     if (Array.isArray(byType) && byType.length > 0) {
       return byType.map((t) => ({ name: t.type, count: t.count }));
     }
@@ -253,9 +252,6 @@ export default function HomePage() {
     return sorted;
   }, [issues, sortBy, sortOrder]);
 
-  const handleIssueClick = (i: { id: number }) => {
-    setDetailId(i.id);
-  };
   
   const totalPages = Math.ceil(totalIssues / pageSize);
 
@@ -311,7 +307,7 @@ export default function HomePage() {
               </div>
               {topContrib?.length ? (
                 <ul className="mt-3 space-y-2 max-h-[420px] overflow-auto pr-1">
-                  {topContrib.map((c) => (
+                  {topContrib.map((c: { name: string; count: number }) => (
                     <li key={`${c.name}-${c.count}`} className="flex items-center justify-between rounded-xl border bg-white px-3 py-2 text-sm">
                       <span className="truncate pr-3">{c.name}</span>
                       <Badge>{c.count}</Badge>

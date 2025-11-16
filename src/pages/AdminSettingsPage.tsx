@@ -25,10 +25,10 @@ export default function AdminSettingsPage() {
     mutationFn: updateSettings, 
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-settings"] });
-      toast.success("Settings updated successfully");
+      toast.show("Settings updated successfully");
     },
     onError: (err: any) => {
-      toast.error(err?.response?.data?.detail || "Failed to update settings");
+      toast.show(err?.response?.data?.detail || "Failed to update settings");
     }
   });
 
@@ -66,7 +66,7 @@ export default function AdminSettingsPage() {
 
   const handleSave = () => {
     if (user?.role !== "super_admin") {
-      toast.error("Only super admins can update settings");
+      toast.show("Only super admins can update settings");
       return;
     }
     mut.mutate(form);

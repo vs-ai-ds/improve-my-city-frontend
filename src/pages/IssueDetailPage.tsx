@@ -21,6 +21,7 @@ export default function IssueDetailPage() {
   if (issue.isLoading) return <div className="p-6">Loading…</div>;
   if (issue.isError) return <div className="p-6 text-red-600">Failed to load.</div>;
   const it = issue.data;
+  if (!it) return <div className="p-6 text-red-600">Issue not found.</div>;
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-6 space-y-6">
@@ -29,7 +30,7 @@ export default function IssueDetailPage() {
         <div className="mt-2 text-sm text-gray-700">
           <div><b>Status:</b> {it.status}</div>
           <div><b>Category:</b> {it.category || "-"}</div>
-          <div><b>Address:</b> {it.address || `${it.lat}, ${it.lng}`}</div>
+          <div><b>Address:</b> {it.address || (it.lat != null && it.lng != null ? `${it.lat}, ${it.lng}` : "No location")}</div>
           <div className="mt-2 whitespace-pre-wrap">{it.description}</div>
         </div>
       </div>

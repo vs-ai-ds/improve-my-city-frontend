@@ -73,7 +73,7 @@ export default function MapPicker({
         map.setZoom(16);
         onPick(p);
         // Reverse geocode to get address
-        new google.maps.Geocoder().geocode({ location: p }, (res, status) => {
+        new google.maps.Geocoder().geocode({ location: p }, (res: google.maps.GeocoderResult[], status: string) => {
           if (status === "OK" && res && res[0]) onPick({ ...p, address: res[0].formatted_address });
         });
       });

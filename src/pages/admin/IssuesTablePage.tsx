@@ -195,7 +195,7 @@ export default function IssuesTablePage() {
                   <td className="p-3 max-w-[32ch] truncate font-medium">{it.title}</td>
                   <td className="p-3">
                     <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${statusColor}`}>
-                      {it.status?.replace("_", " ").replace(/\b\w/g, l => l.toUpperCase())}
+                      {it.status?.replace("_", " ").replace(/\b\w/g, (l: string) => l.toUpperCase())}
                     </span>
                   </td>
                   <td className="p-3">{it.category || "—"}</td>

@@ -3,7 +3,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { listIssueTypes, createIssueType, updateIssueType, deleteIssueType } from "../../services/admin.issueTypes.api";
 import { useToast } from "../../components/toast/ToastProvider";
 import ConfirmDialog from "../../components/ui/ConfirmDialog";
-import Modal from "../../components/ui/Modal";
 import Input from "../../components/ui/Input";
 import Button from "../../components/ui/Button";
 

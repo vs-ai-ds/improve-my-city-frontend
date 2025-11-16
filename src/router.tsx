@@ -3,7 +3,6 @@ import { createBrowserRouter } from "react-router-dom";
 import App from "./App";
 import HomePage from "./pages/HomePage";
 import ReportPage from "./pages/ReportPage";
-import AdminPage from "./pages/AdminPage";
 import IssuesTablePage from "./pages/admin/IssuesTablePage";
 import IssueTypesPage from "./pages/admin/IssueTypesPage";
 import ProfilePage from "./pages/ProfilePage";

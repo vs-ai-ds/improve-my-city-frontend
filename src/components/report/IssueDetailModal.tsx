@@ -1,5 +1,5 @@
 // src/components/report/IssueDetailModal.tsx
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getIssue, listIssueComments, addIssueComment, updateIssueStatus } from "../../services/issues.api";
 import { useAuth } from "../../store/useAuth";
@@ -13,7 +13,10 @@ export default function IssueDetailModal({ open, issueId, onClose }: { open:bool
   const issueQ = useQuery({
     queryKey: ["issue", issueId],
     enabled: !!open && !!issueId,
-    queryFn: () => getIssue(issueId as number),
+    queryFn: async () => {
+      if (!issueId) return null;
+      return await getIssue(issueId);
+    },
     staleTime: 60_000,
   });
 

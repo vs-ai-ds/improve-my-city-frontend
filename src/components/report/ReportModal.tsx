@@ -20,7 +20,7 @@ const inIndia = (lat?: number|null, lng?: number|null) =>
 
 export default function ReportModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { user } = useAuth();
-  const { initialLat, initialLng } = useReportModal();
+  const reportModal = useReportModal();
 
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("");
@@ -303,7 +303,7 @@ export default function ReportModal({ open, onClose }: { open: boolean; onClose:
             <div className="mt-2 rounded-xl border overflow-hidden">
               <div className="h-56 md:h-64">
                 <MapPicker
-                  initialLat={lat} initialLng={lng}
+                  initialLat={reportModal.initialLat ?? lat} initialLng={reportModal.initialLng ?? lng}
                   onPick={(p)=>{ 
                     setLat(p.lat); 
                     setLng(p.lng); 
