@@ -2,7 +2,7 @@
 // Project: improve-my-city-frontend
 // Auto-added for reference
 
-import { InputHTMLAttributes } from "react";
+import type { InputHTMLAttributes } from "react";
 
 export default function Input(props: InputHTMLAttributes<HTMLInputElement>) {
   return (

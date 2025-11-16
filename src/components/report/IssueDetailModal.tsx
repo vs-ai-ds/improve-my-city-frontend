@@ -47,7 +47,10 @@ export default function IssueDetailModal({ open, issueId, onClose }: { open:bool
   if (issueQ.isLoading) return <div className="fixed inset-0 z-50 flex items-center justify-center">Loading...</div>;
   if (issueQ.error) return <div className="fixed inset-0 z-50 flex items-center justify-center">Error loading issue</div>;
 
-  const it:any = issueQ.data;
+  const issue = issueQ.data;
+  if (!issue) return null;
+
+  const it: any = issue;
   // Normalize response shape (backend returns creator_name/creator_email)
   const creator = it.creator ?? { name: it.creator_name, email: it.creator_email };
 
@@ -79,6 +82,15 @@ export default function IssueDetailModal({ open, issueId, onClose }: { open:bool
             <div className="text-sm font-semibold mb-1">Description</div>
             <div className="text-sm text-gray-700 whitespace-pre-wrap">{it.description || "No description provided."}</div>
           </div>
+
+          {(it.lat != null && it.lng != null) && (
+            <div>
+              <div className="text-sm font-semibold mb-1">Location</div>
+              <div className="text-xs text-gray-600">
+                {(it.state_code ? `${it.state_code}, ` : "")}{(it.country || "IN")} • {it.lat.toFixed(6)}, {it.lng.toFixed(6)}
+              </div>
+            </div>
+          )}
 
           <div>
             <div className="text-sm font-semibold mb-2">Photos</div>

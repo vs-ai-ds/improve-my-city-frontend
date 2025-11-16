@@ -28,7 +28,7 @@ export default function AdminPage() {
             </tr>
           </thead>
           <tbody>
-            {data?.map((i) => (
+            {data?.map((i: { id: number; title: string; category: string; status: string }) => (
               <tr key={i.id} className="border-t">
                 <td className="p-2">{i.id}</td>
                 <td className="p-2">{i.title}</td>

@@ -2,7 +2,7 @@
 // Project: improve-my-city-frontend
 // Auto-added for reference
 
-import { ButtonHTMLAttributes } from "react";
+import type { ButtonHTMLAttributes } from "react";
 
 export default function Button({ 
   className="", 

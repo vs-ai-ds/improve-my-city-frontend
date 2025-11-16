@@ -1,7 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { assignIssue, listIssues, updateIssueStatus } from "../../services/admin.issues.api";
 import { useState, useMemo } from "react";
-import AdminLayout from "./AdminLayout";
 import { useIssueTypes } from "../../hooks/useIssueTypes";
 import { api } from "../../services/apiClient";
 

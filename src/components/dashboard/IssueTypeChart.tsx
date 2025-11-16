@@ -27,7 +27,7 @@ export default function IssueTypeChart({
 
   const items = useMemo(() => {
     if (typeStatusData && typeStatusData.length > 0) {
-      return typeStatusData.map(d => ({
+      return typeStatusData.map((d: { type: string; pending: number; in_progress: number; resolved: number }) => ({
         name: d.type,
         pending: d.pending || 0,
         in_progress: d.in_progress || 0,
@@ -35,7 +35,7 @@ export default function IssueTypeChart({
         total: (d.pending || 0) + (d.in_progress || 0) + (d.resolved || 0),
       }));
     }
-    return (data ?? []).map(d => ({ 
+    return (data ?? []).map((d: { type: string; count: number }) => ({ 
       name: d.type, 
       count: d.count,
       pending: 0,

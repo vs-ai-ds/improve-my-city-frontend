@@ -15,7 +15,17 @@ export default function ReportPage() {
   const [ok, setOk] = useState<string | null>(null);
 
   const mut = useMutation({
-    mutationFn: createIssue,
+    mutationFn: async (payload: { title: string; category: string; description: string; lat?: number; lng?: number }) => {
+      const form = new FormData();
+      form.append("title", payload.title);
+      form.append("category", payload.category);
+      form.append("description", payload.description || "");
+      if (payload.lat != null) form.append("lat", String(payload.lat));
+      if (payload.lng != null) form.append("lng", String(payload.lng));
+      form.append("address", "");
+      form.append("country", "IN");
+      return createIssue(form);
+    },
     onSuccess: (d) => setOk(`Created #${d.id}`),
     onError: () => setOk("Failed to create"),
   });

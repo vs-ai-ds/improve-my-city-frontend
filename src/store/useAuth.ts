@@ -25,7 +25,7 @@ export const useAuth = create<{
   logout: () => void;
   bootstrap: () => Promise<void>;
   refreshMe: () => Promise<void>;
-}>()((set, get) => ({
+}>()((set) => ({
   user: null,
 
   persist: async (t) => {

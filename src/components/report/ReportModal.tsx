@@ -238,7 +238,7 @@ export default function ReportModal({ open, onClose }: { open: boolean; onClose:
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div className="md:col-span-2">
               <label className="text-sm">Address</label>
-              <Input ref={addressRef as any} value={address} onChange={(e)=>setAddress(e.target.value)} placeholder="Type to search (India only)" />
+              <input ref={addressRef} value={address} onChange={(e)=>setAddress(e.target.value)} placeholder="Type to search (India only)" className="w-full rounded-xl border border-gray-200 bg-white/80 px-3 py-2 text-sm outline-none ring-0 focus:border-blue-500 focus:bg-white shadow-sm" />
               <p className="text-xs text-gray-500 mt-1">Start typing to see suggestions. Pick one to set coordinates.</p>
             </div>
             <div className="grid grid-cols-2 gap-2">

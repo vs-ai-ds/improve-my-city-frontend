@@ -4,17 +4,16 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getAdminSettings, updateAdminSettings } from "../../services/settings.api";
-import AdminLayout from "./AdminLayout";
 
 export default function AppSettingsPage() {
   const qc = useQueryClient();
   const { data } = useQuery({ queryKey: ["admin-settings"], queryFn: getAdminSettings });
   const m = useMutation({ mutationFn: (p: any) => updateAdminSettings(p), onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-settings"] }) });
 
-  if (!data) return <AdminLayout><div>Loading…</div></AdminLayout>;
+  if (!data) return <div>Loading…</div>;
 
   return (
-    <AdminLayout>
+    <div>
       <h2 className="text-xl font-semibold mb-3">App Settings</h2>
       <div className="space-y-3 max-w-xl">
         <ToggleRow label="Allow anonymous reporting" value={data.allow_anonymous_reporting} onChange={(v)=>m.mutate({ ...data, allow_anonymous_reporting: v })} />
@@ -29,7 +28,7 @@ export default function AppSettingsPage() {
           m.mutate({ ...data, email_from_name: name, email_from_address: addr });
         }} className="rounded-xl px-3 py-2 bg-indigo-600 text-white">Save</button>
       </div>
-    </AdminLayout>
+    </div>
   );
 }
 

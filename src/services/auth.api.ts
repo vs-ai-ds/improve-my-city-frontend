@@ -51,3 +51,13 @@ export async function updateProfile(payload: { name: string; mobile: string | nu
   const { data } = await api.put("/auth/profile", payload);
   return data; // expect { ok: true } or updated user; either works for the caller
 }
+
+export async function reset(token: string, password: string) {
+  const { data } = await api.post("/auth/reset", { token, password });
+  return data;
+}
+
+export async function verifyEmail(token: string) {
+  const { data } = await api.post("/auth/verify-email", null, { params: { token } });
+  return data;
+}

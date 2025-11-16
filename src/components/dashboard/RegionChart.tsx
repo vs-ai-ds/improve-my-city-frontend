@@ -13,7 +13,7 @@ export default function RegionChart({ range }: { range: RangeKey }) {
     queryFn: () => getByState(range),
   });
 
-  const items = (data ?? []).map((d:any) => ({
+  const items = (data ?? []).map((d: { state_code?: string; state?: string; count?: number }) => ({
     name: d.state_code ?? d.state ?? "—",
     count: Number(d.count ?? 0),
   }));

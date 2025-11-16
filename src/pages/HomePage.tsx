@@ -104,7 +104,7 @@ export default function HomePage() {
   const isLoggedIn = !!user;
   const isTeam = !!user && ["staff", "admin", "super_admin"].includes(user.role);
 
-  const { openModal: openReportModal } = useReportModal();
+  const { openWith: openReportModal } = useReportModal();
 
   // Stats (long refresh or none)
   const { data: summary } = useQuery({
@@ -252,6 +252,10 @@ export default function HomePage() {
     });
     return sorted;
   }, [issues, sortBy, sortOrder]);
+
+  const handleIssueClick = (i: { id: number }) => {
+    setDetailId(i.id);
+  };
   
   const totalPages = Math.ceil(totalIssues / pageSize);
 

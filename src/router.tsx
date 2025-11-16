@@ -6,7 +6,6 @@ import ReportPage from "./pages/ReportPage";
 import AdminPage from "./pages/AdminPage";
 import IssuesTablePage from "./pages/admin/IssuesTablePage";
 import IssueTypesPage from "./pages/admin/IssueTypesPage";
-import AppSettingsPage from "./pages/admin/AppSettingsPage";
 import ProfilePage from "./pages/ProfilePage";
 import IssueDetailPage from "./pages/IssueDetailPage";
 import AdminLayout from "./pages/admin/AdminLayout";

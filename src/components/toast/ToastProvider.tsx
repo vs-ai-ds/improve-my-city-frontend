@@ -2,7 +2,8 @@
 // Project: improve-my-city-frontend
 // Auto-added for reference
 
-import { createContext, useContext, useMemo, useState, ReactNode, useCallback } from "react";
+import { createContext, useContext, useMemo, useState, useCallback } from "react";
+import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
 
 type Toast = { id: number; title?: string; message: string; timeoutMs?: number };
