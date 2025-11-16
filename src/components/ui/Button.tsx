@@ -4,11 +4,21 @@
 
 import { ButtonHTMLAttributes } from "react";
 
-export default function Button({ className="", ...rest }: ButtonHTMLAttributes<HTMLButtonElement>) {
+export default function Button({ 
+  className="", 
+  variant = "primary",
+  ...rest 
+}: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "primary" | "secondary" | "danger" }) {
+  const variantClasses = {
+    primary: "bg-indigo-600 hover:bg-indigo-700 text-white",
+    secondary: "bg-gray-200 hover:bg-gray-300 text-gray-800",
+    danger: "bg-red-600 hover:bg-red-700 text-white",
+  };
+  
   return (
     <button
       {...rest}
-      className={`inline-flex items-center justify-center rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow hover:bg-blue-700 disabled:opacity-50 ${className}`}
+      className={`inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-medium shadow disabled:opacity-50 ${variantClasses[variant]} ${className}`}
     />
   );
 }

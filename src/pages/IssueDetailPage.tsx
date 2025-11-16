@@ -1,7 +1,7 @@
 // File: src/pages/IssueDetailPage.tsx
 import { useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { fetchIssue, fetchComments, addComment } from "../services/issues.api";
+import { getIssue, listIssueComments, addIssueComment } from "../services/issues.api";
 import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
 import { useState } from "react";
@@ -10,11 +10,11 @@ export default function IssueDetailPage() {
   const { id } = useParams();
   const issueId = Number(id);
   const qc = useQueryClient();
-  const issue = useQuery({ queryKey: ["issue", issueId], queryFn: () => fetchIssue(issueId) });
-  const comments = useQuery({ queryKey: ["issue-comments", issueId], queryFn: () => fetchComments(issueId), refetchInterval: 15000 });
+  const issue = useQuery({ queryKey: ["issue", issueId], queryFn: () => getIssue(issueId) });
+  const comments = useQuery({ queryKey: ["issue-comments", issueId], queryFn: () => listIssueComments(issueId), refetchInterval: 15000 });
   const [body, setBody] = useState("");
   const mut = useMutation({
-    mutationFn: () => addComment(issueId, body),
+    mutationFn: () => addIssueComment(issueId, { body }),
     onSuccess: () => { setBody(""); qc.invalidateQueries({ queryKey: ["issue-comments", issueId] }); }
   });
 

@@ -1,41 +1,104 @@
-// File: src/components/report/MapPicker.tsx
 import { useEffect, useRef } from "react";
 import { loadGoogleMaps } from "../../lib/loadGoogle";
 
 export default function MapPicker({
-  initialLat, initialLng, onPick, onError,
+  initialLat, initialLng,
+  onPick,
 }: {
   initialLat?: number; initialLng?: number;
   onPick: (p: { lat: number; lng: number; address?: string }) => void;
-  onError?: (m: string) => void;
 }) {
-  const ref = useRef<HTMLDivElement | null>(null);
+  const divRef = useRef<HTMLDivElement | null>(null);
+  const mapRef = useRef<google.maps.Map | null>(null);
+  const markerRef = useRef<google.maps.marker.AdvancedMarkerElement | null>(null);
+  const searchBoxRef = useRef<google.maps.places.SearchBox | null>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
-    let map: any, marker: any;
+    let mounted = true;
     (async () => {
-      try {
-        await loadGoogleMaps();
-        const google = (window as any).google;
-        const center = (typeof initialLat === "number" && typeof initialLng === "number")
-          ? { lat: initialLat, lng: initialLng }
-          : { lat: 21.0, lng: 78.0 }; // India center
-        map = new google.maps.Map(ref.current, { center, zoom: 5, mapTypeControl: false, streetViewControl: false });
-        const { AdvancedMarkerElement } = google.maps.marker;
-        marker = new AdvancedMarkerElement({ map, position: center, title: "Selected location" });
+      await loadGoogleMaps();
+      if (!mounted || !divRef.current) return;
 
-        map.addListener("click", async (e: any) => {
-          const pos = { lat: e.latLng.lat(), lng: e.latLng.lng() };
-          marker.position = pos;
-          onPick(pos);
-          // optional: reverse geocode could be added here
+      const center = (typeof initialLat === "number" && typeof initialLng === "number")
+        ? { lat: initialLat, lng: initialLng }
+        : { lat: 28.6139, lng: 77.2090 }; // New Delhi default
+
+      const map = new google.maps.Map(divRef.current, { 
+        center, 
+        zoom: 6, 
+        mapTypeControl: false, 
+        streetViewControl: false 
+      });
+      mapRef.current = map;
+
+      const { AdvancedMarkerElement } = google.maps.marker as any;
+      markerRef.current = new AdvancedMarkerElement({ map, position: center });
+
+      const searchInput = document.createElement("input");
+      searchInput.type = "text";
+      searchInput.placeholder = "Search for a place in India...";
+      searchInput.style.cssText = "box-sizing:border-box;border:1px solid transparent;width:240px;height:32px;padding:0 12px;border-radius:3px;box-shadow:0 2px 6px rgba(0,0,0,0.3);font-size:14px;outline:none;text-overflow:ellipses;position:absolute;top:10px;left:50%;margin-left:-120px;z-index:1000;";
+      divRef.current!.appendChild(searchInput);
+      searchInputRef.current = searchInput;
+      
+      const searchBox = new google.maps.places.SearchBox(searchInput);
+      searchBoxRef.current = searchBox;
+      
+      // Bias search results to India
+      searchBox.setBounds(new google.maps.LatLngBounds(
+        new google.maps.LatLng(6.5, 68.1), // Southwest corner
+        new google.maps.LatLng(37.6, 97.4) // Northeast corner
+      ));
+
+      // Listen for place selection in search box
+      searchBox.addListener("places_changed", () => {
+        const places = searchBox.getPlaces();
+        if (!places || places.length === 0) return;
+        const place = places[0];
+        if (!place.geometry || !place.geometry.location) return;
+        
+        const p = { lat: place.geometry.location.lat(), lng: place.geometry.location.lng() };
+        markerRef.current!.position = p;
+        map.panTo(p);
+        map.setZoom(16);
+        onPick({ ...p, address: place.formatted_address || place.name });
+      });
+
+      map.addListener("click", (e: google.maps.MapMouseEvent) => {
+        if (!e.latLng) return;
+        const p = { lat: e.latLng.lat(), lng: e.latLng.lng() };
+        markerRef.current!.position = p;
+        map.panTo(p); 
+        map.setZoom(16);
+        onPick(p);
+        // Reverse geocode to get address
+        new google.maps.Geocoder().geocode({ location: p }, (res, status) => {
+          if (status === "OK" && res && res[0]) onPick({ ...p, address: res[0].formatted_address });
         });
-      } catch {
-        onError?.("Failed to load map");
-      }
+      });
     })();
-    return () => { /* no-op */ };
-  }, [initialLat, initialLng, onPick, onError]);
+    return () => { 
+      mounted = false;
+      if (searchInputRef.current && searchInputRef.current.parentNode) {
+        searchInputRef.current.parentNode.removeChild(searchInputRef.current);
+      }
+    };
+  }, []);
 
-  return <div ref={ref} className="h-full w-full" />;
+  // reflect props change (e.g., address autocomplete → new coords)
+  useEffect(() => {
+    if (mapRef.current && markerRef.current && typeof initialLat === "number" && typeof initialLng === "number") {
+      const p = { lat: initialLat, lng: initialLng };
+      markerRef.current.position = p as any;
+      mapRef.current.panTo(p); 
+      mapRef.current.setZoom(16);
+    }
+  }, [initialLat, initialLng]);
+
+  return (
+    <div className="relative">
+      <div ref={divRef} className="h-64 w-full rounded-xl border" />
+    </div>
+  );
 }

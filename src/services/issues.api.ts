@@ -34,7 +34,7 @@ export async function getIssue(id: number) {
 }
 
 export async function updateIssueStatus(id: number, status: Issue["status"]) {
-  const { data } = await api.patch(`/issues/${id}`, { status });
+  const { data } = await api.patch(`/issues/${id}/status`, { status });
   return data;
 }
 
@@ -43,6 +43,13 @@ export async function assignIssue(id: number, userId: number) {
   return data;
 }
 
-export async function fetchIssue(id:number){ const {data}=await api.get(`/issues/${id}`); return data; }
-export async function fetchComments(id:number){ const {data}=await api.get(`/issues/${id}/comments`); return data; }
-export async function addComment(id:number, body:string){ const {data}=await api.post(`/issues/${id}/comments`, { body }); return data; }
+
+export async function listIssueComments(id: number) {
+  const { data } = await api.get(`/issues/${id}/comments`);
+  return data;
+}
+
+export async function addIssueComment(id: number, payload: { body: string }) {
+  const { data } = await api.post(`/issues/${id}/comments`, payload);
+  return data;
+}

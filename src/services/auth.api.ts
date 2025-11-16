@@ -45,3 +45,9 @@ export async function verifyCode(email: string, code: string) {
   });
   return data;
 }
+
+export async function updateProfile(payload: { name: string; mobile: string | null }) {
+  // backend route is typically /auth/profile (PUT)
+  const { data } = await api.put("/auth/profile", payload);
+  return data; // expect { ok: true } or updated user; either works for the caller
+}

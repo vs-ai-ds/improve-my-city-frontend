@@ -1,58 +1,81 @@
-// File: src/pages/ProfilePage.tsx
-import { useEffect, useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+// src/pages/ProfilePage.tsx
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../store/useAuth";
-import Input from "../components/ui/Input";
-import Button from "../components/ui/Button";
-import { api } from "../services/apiClient";
-import IssueCard from "../components/IssueCard";
-
-async function getMe() { const { data } = await api.get("/auth/me"); return data; }
-async function fetchMine() { const { data } = await api.get("/issues?mine_only=1"); return data; }
-async function updateProfile(body: { name: string; mobile?: string | null }) { const { data } = await api.put("/auth/profile", body); return data; }
+import { updateProfile } from "../services/auth.api"; // adjust if named differently
+import { nameOk, mobileOk } from "../lib/validators"; // add mobileOk below if you don't have it
 
 export default function ProfilePage() {
-  const { refreshMe } = useAuth();
-  const qc = useQueryClient();
-  const me = useQuery({ queryKey: ["auth-me"], queryFn: getMe, refetchOnWindowFocus: false });
-  const mine = useQuery({ queryKey: ["my-issues"], queryFn: fetchMine, refetchOnWindowFocus: false });
+  const { user, refreshMe } = useAuth();
+  const [name, setName] = useState(user?.name ?? "");
+  const [mobile, setMobile] = useState(user?.mobile ?? "");
+  const [busy, setBusy] = useState(false);
 
-  const [name, setName] = useState(""); const [mobile, setMobile] = useState("");
-  useEffect(() => { if (me.data) { setName(me.data.name || ""); setMobile(me.data.mobile || ""); } }, [me.data]);
+  useEffect(() => {
+    setName(user?.name ?? "");
+    setMobile(user?.mobile ?? "");
+  }, [user]);
 
-  const mut = useMutation({
-    mutationFn: () => updateProfile({ name: name.trim(), mobile: mobile.trim() || null }),
-    onSuccess: async () => { await qc.invalidateQueries({ queryKey: ["auth-me"] }); await refreshMe(); },
-  });
+  const valid = useMemo(() => {
+    const n = name.trim();
+    const m = mobile.trim();
+    const nameValid = nameOk(n);
+    const mobileValid = !m || mobileOk(m);
+    return nameValid && mobileValid;
+  }, [name, mobile]);
+
+  const dirty = useMemo(() => {
+    return (name ?? "") !== (user?.name ?? "") || (mobile ?? "") !== (user?.mobile ?? "");
+  }, [name, mobile, user]);
+
+  async function save() {
+    if (!dirty || !valid) return;
+    setBusy(true);
+    try {
+      await updateProfile({ name: name.trim(), mobile: mobile.trim() || null });
+      await refreshMe();
+      alert("Profile updated");
+    } catch (e) {
+      alert("Failed to update profile");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-6 space-y-6">
-      <div className="rounded-2xl border bg-white p-4">
-        <h1 className="text-xl font-semibold">Your profile</h1>
-        <div className="mt-4 grid gap-3 max-w-md">
-          <div><label className="text-sm">Full name <span className="text-red-600">*</span></label>
-            <Input value={name} onChange={(e)=>setName(e.target.value)} placeholder="Your name" required />
-          </div>
-          <div><label className="text-sm">Mobile</label>
-            <Input value={mobile} onChange={(e)=>setMobile(e.target.value)} placeholder="+91…" />
-          </div>
-          <div><label className="text-sm">Email</label>
-            <Input value={me.data?.email ?? ""} disabled />
-          </div>
-          <div className="pt-2">
-            <Button onClick={()=>mut.mutate()} disabled={mut.isPending || name.trim().length<2}>
-              {mut.isPending ? "Saving…" : "Save changes"}
-            </Button>
-          </div>
+    <div className="mx-auto max-w-2xl p-4">
+      <h1 className="text-xl font-semibold">Profile</h1>
+      <div className="mt-4 rounded-2xl border bg-white p-4 space-y-3">
+        <div>
+          <label className="block text-sm font-medium">Email</label>
+          <input value={user?.email ?? ""} disabled className="mt-1 w-full rounded-xl border px-3 py-2 bg-gray-50 text-gray-600" />
         </div>
-      </div>
 
-      <div className="rounded-2xl border bg-white p-4">
-        <h2 className="text-lg font-semibold">Your issues</h2>
-        <div className="mt-3 grid md:grid-cols-2 gap-3">
-          {Array.isArray(mine.data) && mine.data.length
-            ? mine.data.map((it:any) => <IssueCard key={it.id} issue={it} />)
-            : <div className="text-sm text-gray-600">No issues yet.</div>}
+        <div>
+          <label className="block text-sm font-medium">Name<span className="text-red-600">*</span></label>
+          <input
+            value={name}
+            onChange={(e)=>setName(e.target.value)}
+            placeholder="Your name"
+            className="mt-1 w-full rounded-xl border px-3 py-2"
+          />
+          {!nameOk(name) && <div className="mt-1 text-xs text-red-600">Min 2 chars; letters/spaces/hyphen/’ only.</div>}
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium">Mobile</label>
+          <input
+            value={mobile}
+            onChange={(e)=>setMobile(e.target.value)}
+            placeholder="+91 98765 43210"
+            className="mt-1 w-full rounded-xl border px-3 py-2"
+          />
+          {!!mobile && !mobileOk(mobile) && <div className="mt-1 text-xs text-red-600">Enter a valid mobile number.</div>}
+        </div>
+
+        <div className="flex items-center justify-end">
+          <button onClick={save} disabled={!dirty || !valid || busy} className="rounded-xl bg-indigo-600 text-white px-4 py-2 disabled:opacity-50">
+            {busy ? "…" : "Save changes"}
+          </button>
         </div>
       </div>
     </div>

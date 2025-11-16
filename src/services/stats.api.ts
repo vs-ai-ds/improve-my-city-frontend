@@ -8,7 +8,7 @@ export type RangeKey = "today" | "7d" | "15d" | "30d" | "all";
 const BASE = "/issues/stats";
 
 export async function getSummary(range: RangeKey) {
-  const { data } = await api.get(`${BASE}`, { params: { range } });
+  const { data } = await api.get(`${BASE}/summary`, { params: { range } });
   return data;
 }
 

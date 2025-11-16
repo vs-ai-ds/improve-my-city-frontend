@@ -11,7 +11,8 @@ import ProfilePage from "./pages/ProfilePage";
 import IssueDetailPage from "./pages/IssueDetailPage";
 import AdminLayout from "./pages/admin/AdminLayout";
 import AdminSettingsPage from "./pages/AdminSettingsPage";
-
+import AdminUsersPage from "./pages/admin/AdminUsersPage";
+import AdminLandingPage from "./pages/admin/AdminLandingPage";
 
 
 export const router = createBrowserRouter([
@@ -24,17 +25,14 @@ export const router = createBrowserRouter([
       { path: "profile", element: <ProfilePage /> },
       { path: "issues/:id", element: <IssueDetailPage /> },
       {
-        path: "admin",
-        element: <AdminLayout />,
-        children: [
-          { index: true, element: <AdminPage /> },  
-          { path: "issues", element: <IssuesTablePage /> },
-          { path: "issue-types", element: <IssueTypesPage /> },
-          { path: "settings", element: <AdminSettingsPage /> },
-          // add users page later if you have it:
-          // { path: "users", element: <AdminUsersPage /> },
-        ],
-      },
+        path: "/admin", element: <AdminLayout />, children: [
+        { index: true, element: <AdminLandingPage /> }, // <— landing
+        { path: "issues", element: <IssuesTablePage /> },
+        { path: "issue-types", element: <IssueTypesPage /> },
+        { path: "users", element: <AdminUsersPage /> },
+        { path: "settings", element: <AdminSettingsPage /> },
+        ]
+      }
     ],
   },
 ]);

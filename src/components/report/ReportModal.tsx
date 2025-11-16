@@ -9,11 +9,14 @@ import { createIssue } from "../../services/issues.api";
 import { useReportModal } from "../../store/useReportModal";
 import { useAuth } from "../../store/useAuth";
 import MapPicker from "./MapPicker";
+import { useToast } from "../toast/ToastProvider";
 
 const ALLOWED = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 const MAX_FILES = 10, MAX_BYTES = 2 * 1024 * 1024;
+const inIndia = (lat?: number|null, lng?: number|null) =>
+  lat != null && lng != null && lat >= 6.5 && lat <= 37.6 && lng >= 68.1 && lng <= 97.4;
 
-function inIndia(lat:number,lng:number){ return lat>=6.0 && lat<=37.1 && lng>=68.1 && lng<=97.4; }
+//function inIndia(lat:number,lng:number){ return lat>=6.0 && lat<=37.1 && lng>=68.1 && lng<=97.4; }
 
 export default function ReportModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { user } = useAuth();
@@ -22,13 +25,15 @@ export default function ReportModal({ open, onClose }: { open: boolean; onClose:
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("");
   const [description, setDescription] = useState("");
-  const [lat, setLat] = useState<number | undefined>(undefined);
-  const [lng, setLng] = useState<number | undefined>(undefined);
+  const [lat, setLat] = useState<number | undefined>();
+  const [lng, setLng] = useState<number | undefined>();
+  const latLngInvalid = useMemo(() => (lat!=null && lng!=null) && !inIndia(lat, lng), [lat, lng]);
   const [address, setAddress] = useState("");
-  const [files, setFiles] = useState<FileList | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [ok, setOk] = useState<{ id:number; title:string } | null>(null);
+  const toast = useToast();
 
   const { data: types } = useQuery({
     queryKey: ["issue-types:public"],
@@ -39,12 +44,39 @@ export default function ReportModal({ open, onClose }: { open: boolean; onClose:
   const categories = useMemo(() => Array.isArray(types) ? types.map((t:any)=>t.name).filter(Boolean) : [], [types]);
 
   useEffect(() => {
-    if (open) {
-      setTitle(""); setCategory(""); setDescription(""); setAddress("");
-      setLat(initialLat); setLng(initialLng);
-      setFiles(null); setPreviews([]); setErr(null); setOk(null);
+    if (!open) return;
+    setTitle(""); setCategory(""); setDescription(""); setAddress(""); setErr(null); setOk(null);
+    setFiles([]); setPreviews([]);
+    setLat((v) => (typeof v === "number" ? v : 28.6139));
+    setLng((v) => (typeof v === "number" ? v : 77.2090));
+    
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          if (inIndia(latitude, longitude)) {
+            setLat(latitude);
+            setLng(longitude);
+            // Reverse geocode to get address
+            const g = (window as any).google;
+            if (g?.maps?.Geocoder) {
+              new g.maps.Geocoder().geocode(
+                { location: { lat: latitude, lng: longitude } },
+                (results: any[], status: string) => {
+                  if (status === "OK" && results?.[0]) {
+                    setAddress(results[0].formatted_address);
+                  }
+                }
+              );
+            }
+          }
+        },
+        () => {
+          // User denied or error - use default location
+        }
+      );
     }
-  }, [open, initialLat, initialLng]);
+  }, [open]);
 
   const addressRef = useRef<HTMLInputElement | null>(null);
   useEffect(() => {
@@ -56,26 +88,29 @@ export default function ReportModal({ open, onClose }: { open: boolean; onClose:
     });
     ac.addListener("place_changed", () => {
       const place = ac.getPlace();
-      const pos = place?.geometry?.location;
-      const formatted = place?.formatted_address || addressRef.current!.value;
-      setAddress(formatted || "");
-      if (pos) { const p = { lat: pos.lat(), lng: pos.lng() }; setLat(p.lat); setLng(p.lng); }
+      const g = place?.geometry?.location;
+      const formatted = place?.formatted_address || addressRef.current!.value || "";
+      setAddress(formatted);
+      if (g) { setLat(g.lat()); setLng(g.lng()); }
     });
   }, [open]);
 
   function onFilesSel(list: FileList | null) {
-    setFiles(list);
-    setPreviews([]);
     if (!list) return;
-    const arr = Array.from(list).slice(0, MAX_FILES);
-    Promise.all(arr.map(f => new Promise<string>(res => { const r=new FileReader(); r.onload=()=>res(String(r.result)); r.readAsDataURL(f); })))
-      .then(setPreviews);
+    const newFiles = Array.from(list);
+    const combined = [...files, ...newFiles].slice(0, MAX_FILES);
+    setFiles(combined);
+    // Update previews for all files
+    Promise.all(combined.map(f => new Promise<string>(res => { 
+      const r = new FileReader(); 
+      r.onload = () => res(String(r.result)); 
+      r.readAsDataURL(f); 
+    }))).then(setPreviews);
   }
-  function removeAt(i:number){
-    if (!files) return;
-    const arr = Array.from(files); arr.splice(i,1);
-    const dt = new DataTransfer(); arr.forEach(f=>dt.items.add(f));
-    setFiles(dt.files); setPreviews(p=>p.filter((_,idx)=>idx!==i));
+  function removeAt(i: number) {
+    const newFiles = files.filter((_, idx) => idx !== i);
+    setFiles(newFiles);
+    setPreviews(previews.filter((_, idx) => idx !== i));
   }
 
   const titleOk = title.trim().length >= 3 && title.trim().length <= 200;
@@ -83,33 +118,68 @@ export default function ReportModal({ open, onClose }: { open: boolean; onClose:
   const catOk = !!category;
   const coordsOk = typeof lat === "number" && typeof lng === "number";
   const filesOk = (() => {
-    if (!files || files.length === 0) return true;
+    if (files.length === 0) return true;
     if (files.length > MAX_FILES) return false;
-    for (const f of Array.from(files)) { if (!ALLOWED.has(f.type) || f.size > MAX_BYTES) return false; }
+    for (const f of files) { if (!ALLOWED.has(f.type) || f.size > MAX_BYTES) return false; }
     return true;
   })();
   const ready = titleOk && descOk && catOk && coordsOk && filesOk && lat!==undefined && lng!==undefined;
 
   const mut = useMutation({
     mutationFn: async () => {
-      if (!ready) throw new Error("Please complete all required fields.");
-      if (!inIndia(lat!, lng!)) throw new Error("Location must be within India.");
+      if (!ready) {
+        toast.show("Please complete all required fields.");
+        throw new Error("Please complete all required fields.");
+      }
+      if (!title?.trim() || !category) {
+        toast.show("Please fill required fields.");
+        throw new Error("missing-fields");
+      }
+      if (lat == null || lng == null) {
+        toast.show("Please pick a location.");
+        throw new Error("Missing lat/lng");
+      }
+      if (typeof lat !== "number" || typeof lng !== "number") {
+        toast.show("Please choose a valid location on the map.");
+        throw new Error("missing-location");
+      }
+      if (!inIndia(lat, lng) || latLngInvalid) {
+        toast.show("Location must be inside India.");
+        throw new Error("Location outside India");
+      }
+
       const form = new FormData();
       form.append("title", title.trim());
       form.append("category", category);
-      form.append("description", description.trim());
+      form.append("description", description?.trim() || "");
       form.append("lat", String(lat));
       form.append("lng", String(lng));
       form.append("address", address || "");
       form.append("country", "IN");
-      if (files) Array.from(files).slice(0,MAX_FILES).forEach((f) => form.append("files", f));
-      const res = await createIssue(form);
+      if (files.length > 0) {
+        files.forEach((f) => form.append("files", f));
+      }
+
+      const res = await createIssue(form); 
       return res as { id:number; title:string };
     },
     onSuccess: (data) => {
+      toast.show(`Report submitted — ticket #${data.id}`);
       setOk({ id: data.id, title: data.title });
     },
-    onError: (e:any) => setErr(e?.response?.data?.detail || e?.message || "Submission failed"),
+    onError: (e: any) => {
+      if (e?.response?.status === 401) {
+        const msg = "Your session has expired. Please log in again to submit a report.";
+        toast.show(msg);
+        setErr(msg);
+        // Close modal and let user re-authenticate
+        setTimeout(() => onClose(), 2000);
+      } else {
+        const msg = e?.response?.data?.detail || e?.message || "Submission failed";
+        toast.show(msg);
+        setErr(msg);
+      }
+    },
   });
 
   if (!user) {
@@ -171,16 +241,61 @@ export default function ReportModal({ open, onClose }: { open: boolean; onClose:
               <Input ref={addressRef as any} value={address} onChange={(e)=>setAddress(e.target.value)} placeholder="Type to search (India only)" />
               <p className="text-xs text-gray-500 mt-1">Start typing to see suggestions. Pick one to set coordinates.</p>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="text-sm">Latitude <span className="text-red-600">*</span></label>
-                <Input type="number" step="any" value={lat ?? ""} onChange={(e)=>setLat(e.target.value===""?undefined:Number(e.target.value))} placeholder="19.0760" required />
+                <label className="block text-sm font-medium">Latitude</label>
+                <input 
+                  value={lat ?? ""} 
+                  onChange={(e)=>{
+                    const val = e.target.value ? Number(e.target.value) : undefined;
+                    setLat(val);
+                    if (val !== undefined && typeof lng === "number" && inIndia(val, lng)) {
+                      const g = (window as any).google;
+                      if (g?.maps?.Geocoder) {
+                        new g.maps.Geocoder().geocode(
+                          { location: { lat: val, lng: lng } },
+                          (results: any[], status: string) => {
+                            if (status === "OK" && results?.[0]) {
+                              setAddress(results[0].formatted_address);
+                            }
+                          }
+                        );
+                      }
+                    }
+                  }} 
+                  className="mt-1 w-full rounded-xl border px-3 py-2" 
+                />
               </div>
               <div>
-                <label className="text-sm">Longitude <span className="text-red-600">*</span></label>
-                <Input type="number" step="any" value={lng ?? ""} onChange={(e)=>setLng(e.target.value===""?undefined:Number(e.target.value))} placeholder="72.8777" required />
+                <label className="block text-sm font-medium">Longitude</label>
+                <input 
+                  value={lng ?? ""} 
+                  onChange={(e)=>{
+                    const val = e.target.value ? Number(e.target.value) : undefined;
+                    setLng(val);
+                    if (val !== undefined && typeof lat === "number" && inIndia(lat, val)) {
+                      const g = (window as any).google;
+                      if (g?.maps?.Geocoder) {
+                        new g.maps.Geocoder().geocode(
+                          { location: { lat: lat, lng: val } },
+                          (results: any[], status: string) => {
+                            if (status === "OK" && results?.[0]) {
+                              setAddress(results[0].formatted_address);
+                            }
+                          }
+                        );
+                      }
+                    }
+                  }} 
+                  className="mt-1 w-full rounded-xl border px-3 py-2" 
+                />
               </div>
             </div>
+            {latLngInvalid && (
+              <p className="text-xs text-red-600 mt-1 col-span-full">
+                Selected coordinates must be inside India. Please adjust the pin or search an Indian address.
+              </p>
+            )}
           </div>
 
           <div>
@@ -189,7 +304,11 @@ export default function ReportModal({ open, onClose }: { open: boolean; onClose:
               <div className="h-56 md:h-64">
                 <MapPicker
                   initialLat={lat} initialLng={lng}
-                  onPick={(p)=>{ setLat(p.lat); setLng(p.lng); }}
+                  onPick={(p)=>{ 
+                    setLat(p.lat); 
+                    setLng(p.lng); 
+                    if (p.address) setAddress(p.address);
+                  }}
                 />
               </div>
             </div>
@@ -199,7 +318,9 @@ export default function ReportModal({ open, onClose }: { open: boolean; onClose:
           <div>
             <label className="text-sm">Photos (optional)</label>
             <label className="mt-1 block rounded-xl border p-3 cursor-pointer bg-white hover:bg-gray-50">
-              <span className="text-sm text-gray-600">Up to 10 images (JPG/PNG/WebP/GIF, ≤2MB each)</span>
+              <span className="text-sm text-gray-600">
+                {files.length > 0 ? `${files.length}/10 images selected` : "Click to add images (up to 10, JPG/PNG/WebP/GIF, ≤2MB each)"}
+              </span>
               <input type="file" accept="image/*" multiple className="hidden" onChange={(e)=>onFilesSel(e.target.files)} />
             </label>
             {!!previews.length && (
