@@ -19,8 +19,7 @@ import Pagination from "../components/ui/Pagination";
 
 // Charts (Recharts)
 import {
-  PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
-  BarChart, Bar, XAxis, YAxis, CartesianGrid,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip,
 } from "recharts";
 
 /** Toggle demo placeholders if backend is empty */
@@ -39,21 +38,14 @@ function prettyDuration(sec?: number) {
   return [d ? `${d}d` : null, h ? `${h}h` : null, m ? `${m}m` : null].filter(Boolean).join(" ") || "0m";
 }
 
-/** Mini chip */
-function Badge({ children }: { children: React.ReactNode }) {
-  return <span className="inline-flex items-center rounded-xl border bg-white px-2 py-1 text-xs text-gray-700">{children}</span>;
-}
-
 /** Generic bar for simple name/count data */
 function SimpleBar({
-  data, xKey = "name", yKey = "count", onBarClick, selectedValue, onClearFilter,
+  data, xKey = "name", yKey = "count", onBarClick,
 }: { 
   data: any[]; 
   xKey?: string; 
   yKey?: string; 
   onBarClick?: (name: string) => void;
-  selectedValue?: string;
-  onClearFilter?: () => void;
 }) {
   return (
     <div className="h-[550px]">
@@ -118,7 +110,7 @@ export default function HomePage() {
   const { openWith: openReportModal } = useReportModal();
 
   // Stats (long refresh or none)
-  const { data: summary } = useQuery({
+  useQuery({
     queryKey: ["stats:summary", range],
     queryFn: async () => (await api.get("/issues/stats/summary", { params: { range } })).data,
     refetchInterval: 1800000, // 30m
@@ -450,8 +442,6 @@ export default function HomePage() {
                     setStateCode(sc);
                     setPage(1);
                   }}
-                  selectedValue={stateCode}
-                  onClearFilter={() => { setStateCode(""); setPage(1); }}
                 />
               </div>
             ) : (

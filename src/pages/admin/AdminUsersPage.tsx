@@ -25,8 +25,6 @@ export default function AdminUsersPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("citizen");
-  const [editingUserId, setEditingUserId] = useState<number | null>(null);
-  const [editingRole, setEditingRole] = useState("");
   const [regionsModal, setRegionsModal] = useState<{ userId: number; userName: string } | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: number; name: string } | null>(null);
 

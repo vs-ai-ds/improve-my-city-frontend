@@ -112,11 +112,7 @@ export default function MapPicker({
   useEffect(() => {
     if (mapRef.current && markerRef.current && typeof initialLat === "number" && typeof initialLng === "number") {
       const p = { lat: initialLat, lng: initialLng };
-      if (markerRef.current.setPosition) {
-        markerRef.current.setPosition(p);
-      } else {
-        markerRef.current.position = p as any;
-      }
+      markerRef.current.position = p as any;
       mapRef.current.panTo(p); 
       mapRef.current.setZoom(16);
     }

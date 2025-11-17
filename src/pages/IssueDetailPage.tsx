@@ -6,7 +6,6 @@ import Input from "../components/ui/Input";
 import { useState } from "react";
 import { useAuth } from "../store/useAuth";
 import { useToast } from "../components/toast/ToastProvider";
-import StatusPie from "../components/dashboard/StatusPie";
 
 export default function IssueDetailPage() {
   const { id } = useParams();
@@ -98,12 +97,11 @@ export default function IssueDetailPage() {
   };
   const statusColor = statusColors[issueData.status] || "bg-gray-100 text-gray-800 border-gray-300";
 
-  const cardBg = statusColors[issueData.status]?.replace("text-", "bg-").replace("border-", "").split(" ")[0] || "bg-white";
   const bgGradient = {
     pending: "from-amber-50 to-orange-50",
     in_progress: "from-yellow-50 to-amber-50",
     resolved: "from-emerald-50 to-teal-50",
-  }[issueData.status] || "from-gray-50 to-white";
+  }[issueData.status as keyof typeof statusColors] || "from-gray-50 to-white";
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
