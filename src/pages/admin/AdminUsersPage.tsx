@@ -85,8 +85,6 @@ export default function AdminUsersPage() {
     mutationFn: (p: { id: number; body: any }) => updateUser(p.id, p.body),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-users"] });
-      setEditingUserId(null);
-      setEditingRole("");
       toast.show("User updated");
     },
     onError: (e: any) => toast.show(e?.response?.data?.detail || "Update failed"),

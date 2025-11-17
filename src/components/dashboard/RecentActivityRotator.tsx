@@ -66,10 +66,6 @@ export default function RecentActivityRotator({
     );
   }
 
-  const act = items[idx];
-  const bgColor = statusBgColors[act.kind] || "bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200";
-  const textColor = statusTextColors[act.kind] || "text-gray-800";
-
   return (
     <div
       className="flex flex-col h-full relative overflow-hidden"

@@ -38,10 +38,10 @@ export default function MapPicker({
           const { AdvancedMarkerElement } = google.maps.marker as any;
           marker = new AdvancedMarkerElement({ map, position: center });
         } catch (e) {
-          marker = new google.maps.Marker({ map, position: center });
+          marker = new (google.maps as any).Marker({ map, position: center });
         }
       } else {
-        marker = new google.maps.Marker({ map, position: center });
+        marker = new (google.maps as any).Marker({ map, position: center });
       }
       markerRef.current = marker;
 
@@ -70,11 +70,7 @@ export default function MapPicker({
         
         const p = { lat: place.geometry.location.lat(), lng: place.geometry.location.lng() };
         if (markerRef.current) {
-          if (markerRef.current.setPosition) {
-            markerRef.current.setPosition(p);
-          } else {
-            markerRef.current.position = p;
-          }
+          markerRef.current.position = p as any;
         }
         map.panTo(p);
         map.setZoom(16);
@@ -85,11 +81,7 @@ export default function MapPicker({
         if (!e.latLng) return;
         const p = { lat: e.latLng.lat(), lng: e.latLng.lng() };
         if (markerRef.current) {
-          if (markerRef.current.setPosition) {
-            markerRef.current.setPosition(p);
-          } else {
-            markerRef.current.position = p;
-          }
+          markerRef.current.position = p as any;
         }
         map.panTo(p); 
         map.setZoom(16);
