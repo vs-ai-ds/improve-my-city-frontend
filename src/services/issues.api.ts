@@ -44,7 +44,7 @@ export async function updateIssueStatus(id: number, status: Issue["status"]) {
   return data;
 }
 
-export async function assignIssue(id: number, userId: number) {
+export async function assignIssue(id: number, userId: number | null) {
   const { data } = await api.patch(`/issues/${id}`, { assigned_to_id: userId });
   return data;
 }

@@ -40,6 +40,7 @@ export const useAuth = create<{
   logout: () => {
     localStorage.removeItem("access_token"); localStorage.removeItem("refresh_token");
     setAuthHeader(undefined); set({ user: null });
+    window.location.href = "/";
   },
 
   bootstrap: async () => {

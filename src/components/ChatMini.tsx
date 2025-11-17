@@ -1,22 +1,205 @@
-// File: src/components/ChatMini.tsx
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { api } from "../services/apiClient";
+import { useAuth } from "../store/useAuth";
+import { MessageCircle, X, Send, Loader2 } from "lucide-react";
 
-export default function ChatMini(){
-  const [q,setQ]=useState(""); const [a,setA]=useState<string|undefined>();
-  async function ask(){
-    const { data } = await api.post("/bot/ask", { q });
-    setA(data?.answer);
+type Message = {
+  role: "user" | "bot";
+  text: string;
+  ts: number;
+};
+
+type ChatResponse = {
+  reply: string;
+  suggestions: string[];
+  state?: Record<string, any>;
+};
+
+function getSessionId(): string {
+  const stored = localStorage.getItem("chat_session_id");
+  if (stored) return stored;
+  const newId = `chat_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  localStorage.setItem("chat_session_id", newId);
+  return newId;
+}
+
+export default function ChatMini() {
+  const [open, setOpen] = useState(false);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState("");
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [typing, setTyping] = useState(false);
+  const [sessionId] = useState(getSessionId());
+  const { user } = useAuth();
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (open && messages.length === 0) {
+      const greeting = user
+        ? `Hi ${user.name || user.email.split("@")[0]} 👋 How can I help with your issues today?`
+        : "Hi there! 👋 How can I help you today?";
+      
+      const initialSuggestions = [
+        "How do I report an issue?",
+        "Check status of an issue",
+        "Show my issues",
+        "What do statuses mean?"
+      ];
+
+      setMessages([{ role: "bot", text: greeting, ts: Date.now() }]);
+      setSuggestions(initialSuggestions);
+    }
+  }, [open, user]);
+
+  useEffect(() => {
+    if (open) {
+      inputRef.current?.focus();
+    }
+  }, [open]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  const sendMessage = async (text: string) => {
+    if (!text.trim() || typing) return;
+
+    const userMsg: Message = { role: "user", text: text.trim(), ts: Date.now() };
+    setMessages(prev => [...prev, userMsg]);
+    setInput("");
+    setSuggestions([]);
+    setTyping(true);
+
+    try {
+      const typingDelay = setTimeout(() => setTyping(true), 400);
+      
+      const { data } = await api.post<ChatResponse>("/bot/chat", {
+        session_id: sessionId,
+        message: text.trim(),
+        user: user ? { id: user.id, email: user.email } : null
+      });
+
+      clearTimeout(typingDelay);
+      
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      const botMsg: Message = { role: "bot", text: data.reply, ts: Date.now() };
+      setMessages(prev => [...prev, botMsg]);
+      setSuggestions(data.suggestions || []);
+    } catch (error: any) {
+      const errorMsg: Message = {
+        role: "bot",
+        text: error?.response?.data?.detail || "Sorry, I encountered an error. Please try again.",
+        ts: Date.now()
+      };
+      setMessages(prev => [...prev, errorMsg]);
+      setSuggestions(["Try again", "How do I report an issue?"]);
+    } finally {
+      setTyping(false);
+    }
+  };
+
+  const handleSuggestion = (suggestion: string) => {
+    sendMessage(suggestion);
+  };
+
+  if (!open) {
+    return (
+      <button
+        onClick={() => setOpen(true)}
+        className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-indigo-600 text-white shadow-lg hover:bg-indigo-700 transition-all hover:scale-110 flex items-center justify-center"
+        aria-label="Open chat"
+      >
+        <MessageCircle className="w-6 h-6" />
+      </button>
+    );
   }
+
   return (
-    <div className="fixed bottom-5 left-5 z-40 rounded-2xl border bg-white/90 backdrop-blur p-3 shadow">
-      <div className="text-xs font-semibold mb-1">Ask PlanPal</div>
-      <div className="flex gap-2">
-        <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Status of #123?"
-          className="rounded-xl border p-2 text-sm w-48"/>
-        <button onClick={ask} className="rounded-xl bg-indigo-600 text-white px-3 text-sm">Ask</button>
+    <div className="fixed bottom-6 right-6 z-50 w-96 max-w-[calc(100vw-2rem)] h-[600px] max-h-[calc(100vh-8rem)] bg-white rounded-2xl shadow-2xl border border-gray-200 flex flex-col overflow-hidden">
+      <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white p-4 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <MessageCircle className="w-5 h-5" />
+          <h3 className="font-semibold">PlanPal Assistant</h3>
+        </div>
+        <button
+          onClick={() => setOpen(false)}
+          className="hover:bg-white/20 rounded-lg p-1 transition-colors"
+          aria-label="Close chat"
+        >
+          <X className="w-5 h-5" />
+        </button>
       </div>
-      {a && <div className="mt-2 text-sm">{a}</div>}
+
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
+        {messages.map((msg, idx) => (
+          <div
+            key={idx}
+            className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+          >
+            <div
+              className={`max-w-[80%] rounded-2xl px-4 py-2 ${
+                msg.role === "user"
+                  ? "bg-indigo-600 text-white"
+                  : "bg-white text-gray-900 border border-gray-200"
+              }`}
+            >
+              <p className="text-sm whitespace-pre-wrap">{msg.text}</p>
+            </div>
+          </div>
+        ))}
+        
+        {typing && (
+          <div className="flex justify-start">
+            <div className="bg-white border border-gray-200 rounded-2xl px-4 py-2">
+              <Loader2 className="w-4 h-4 animate-spin text-indigo-600" />
+            </div>
+          </div>
+        )}
+
+        {suggestions.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {suggestions.map((suggestion, idx) => (
+              <button
+                key={idx}
+                onClick={() => handleSuggestion(suggestion)}
+                className="text-xs px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-full hover:bg-indigo-100 transition-colors border border-indigo-200"
+              >
+                {suggestion}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <div ref={messagesEndRef} />
+      </div>
+
+      <div className="p-4 border-t bg-white">
+        <div className="flex gap-2">
+          <input
+            ref={inputRef}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage(input);
+              }
+            }}
+            placeholder="Type your message..."
+            className="flex-1 rounded-xl border border-gray-300 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            disabled={typing}
+          />
+          <button
+            onClick={() => sendMessage(input)}
+            disabled={!input.trim() || typing}
+            className="rounded-xl bg-indigo-600 text-white px-4 py-2 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+          >
+            <Send className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

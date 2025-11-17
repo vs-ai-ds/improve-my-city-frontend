@@ -37,6 +37,7 @@ export default function AdminSettingsPage() {
     require_email_verification: true,
     admin_open_registration: false,
     email_from: "",
+    email_from_name: "",
     features: {
       allow_comments: true,
       show_top_contributors: true,
@@ -53,6 +54,7 @@ export default function AdminSettingsPage() {
         require_email_verification: data.require_email_verification ?? true,
         admin_open_registration: data.admin_open_registration || false,
         email_from: data.email_from || "",
+        email_from_name: data.email_from_name || "",
         features: data.features || {
           allow_comments: true,
           show_top_contributors: true,
@@ -159,22 +161,43 @@ export default function AdminSettingsPage() {
       {/* Email Settings */}
       <section className="space-y-4">
         <h3 className="text-lg font-semibold text-gray-800 border-b pb-2">Email Settings</h3>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Sender Email Address
-          </label>
-          <Input
-            type="email"
-            value={form.email_from}
-            onChange={(e) => setForm({ ...form, email_from: e.target.value })}
-            placeholder="noreply@example.com"
-            disabled={!isSuperAdmin}
-            className="w-full"
-          />
-          <p className="mt-1 text-xs text-gray-500">
-            All transactional emails (verification, reset, status updates) will use this address
-          </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Sender Name
+            </label>
+            <Input
+              type="text"
+              value={form.email_from_name}
+              onChange={(e) => setForm({ ...form, email_from_name: e.target.value })}
+              placeholder="Improve My City"
+              disabled={!isSuperAdmin}
+              className="w-full"
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              Display name for email sender
+            </p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Sender Email Address
+            </label>
+            <Input
+              type="email"
+              value={form.email_from}
+              onChange={(e) => setForm({ ...form, email_from: e.target.value })}
+              placeholder="noreply@example.com"
+              disabled={!isSuperAdmin}
+              className="w-full"
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              Email address for sending
+            </p>
+          </div>
         </div>
+        <p className="text-xs text-gray-500 mt-2">
+          All transactional emails (verification, reset, status updates) will use these settings
+        </p>
       </section>
 
       {/* Notifications */}

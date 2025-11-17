@@ -32,8 +32,18 @@ export default function MapPicker({
       });
       mapRef.current = map;
 
-      const { AdvancedMarkerElement } = google.maps.marker as any;
-      markerRef.current = new AdvancedMarkerElement({ map, position: center });
+      let marker: any = null;
+      if (google.maps.marker && (google.maps.marker as any).AdvancedMarkerElement) {
+        try {
+          const { AdvancedMarkerElement } = google.maps.marker as any;
+          marker = new AdvancedMarkerElement({ map, position: center });
+        } catch (e) {
+          marker = new google.maps.Marker({ map, position: center });
+        }
+      } else {
+        marker = new google.maps.Marker({ map, position: center });
+      }
+      markerRef.current = marker;
 
       const searchInput = document.createElement("input");
       searchInput.type = "text";
@@ -59,7 +69,13 @@ export default function MapPicker({
         if (!place.geometry || !place.geometry.location) return;
         
         const p = { lat: place.geometry.location.lat(), lng: place.geometry.location.lng() };
-        markerRef.current!.position = p;
+        if (markerRef.current) {
+          if (markerRef.current.setPosition) {
+            markerRef.current.setPosition(p);
+          } else {
+            markerRef.current.position = p;
+          }
+        }
         map.panTo(p);
         map.setZoom(16);
         onPick({ ...p, address: place.formatted_address || place.name });
@@ -68,7 +84,13 @@ export default function MapPicker({
       map.addListener("click", (e: google.maps.MapMouseEvent) => {
         if (!e.latLng) return;
         const p = { lat: e.latLng.lat(), lng: e.latLng.lng() };
-        markerRef.current!.position = p;
+        if (markerRef.current) {
+          if (markerRef.current.setPosition) {
+            markerRef.current.setPosition(p);
+          } else {
+            markerRef.current.position = p;
+          }
+        }
         map.panTo(p); 
         map.setZoom(16);
         onPick(p);
@@ -90,7 +112,11 @@ export default function MapPicker({
   useEffect(() => {
     if (mapRef.current && markerRef.current && typeof initialLat === "number" && typeof initialLng === "number") {
       const p = { lat: initialLat, lng: initialLng };
-      markerRef.current.position = p as any;
+      if (markerRef.current.setPosition) {
+        markerRef.current.setPosition(p);
+      } else {
+        markerRef.current.position = p as any;
+      }
       mapRef.current.panTo(p); 
       mapRef.current.setZoom(16);
     }
