@@ -154,7 +154,7 @@ export default function RegionChart({
                   dataKey="pending" 
                   stackId="a"
                   fill={STATUS_COLORS.pending.chart}
-                  onClick={(data: any) => onRegionClick?.(data.name)}
+                  onClick={(data) => data?.name && onRegionClick?.(data.name)}
                   style={{ cursor: onRegionClick ? 'pointer' : 'default' }}
                   radius={[0, 0, 0, 0]}
                   barSize={70}
@@ -165,14 +165,17 @@ export default function RegionChart({
                     fill="#ffffff" 
                     fontSize={11}
                     fontWeight="bold"
-                    formatter={(value: number) => value > 0 ? value : ''}
+                    formatter={(label: unknown) => {
+                      const value = typeof label === 'number' ? label : Number(label);
+                      return value > 0 ? String(value) : '';
+                    }}
                   />
                 </Bar>
                 <Bar 
                   dataKey="in_progress" 
                   stackId="a"
                   fill={STATUS_COLORS.in_progress.chart}
-                  onClick={(data: any) => onRegionClick?.(data.name)}
+                  onClick={(data) => data?.name && onRegionClick?.(data.name)}
                   style={{ cursor: onRegionClick ? 'pointer' : 'default' }}
                   radius={[0, 0, 0, 0]}
                   barSize={70}
@@ -183,7 +186,10 @@ export default function RegionChart({
                     fill="#ffffff" 
                     fontSize={11}
                     fontWeight="bold"
-                    formatter={(value: number) => value > 0 ? value : ''}
+                    formatter={(label: unknown) => {
+                      const value = typeof label === 'number' ? label : Number(label);
+                      return value > 0 ? String(value) : '';
+                    }}
                   />
                 </Bar>
                 <Bar 
@@ -191,7 +197,7 @@ export default function RegionChart({
                   stackId="a"
                   fill={STATUS_COLORS.resolved.chart}
                   radius={[0, 0, 0, 0]}
-                  onClick={(data: any) => onRegionClick?.(data.name)}
+                  onClick={(data) => data?.name && onRegionClick?.(data.name)}
                   style={{ cursor: onRegionClick ? 'pointer' : 'default' }}
                   barSize={70}
                 >
@@ -201,7 +207,10 @@ export default function RegionChart({
                     fill="#ffffff" 
                     fontSize={11}
                     fontWeight="bold"
-                    formatter={(value: number) => value > 0 ? value : ''}
+                    formatter={(label: unknown) => {
+                      const value = typeof label === 'number' ? label : Number(label);
+                      return value > 0 ? String(value) : '';
+                    }}
                   />
                   <LabelList
                     dataKey="total"
@@ -218,7 +227,7 @@ export default function RegionChart({
                 dataKey="total" 
                 fill="#10b981"
                 radius={[4, 4, 0, 0]}
-                onClick={(data: any) => onRegionClick?.(data.name)}
+                onClick={(data) => data?.name && onRegionClick?.(data.name)}
                 style={{ cursor: onRegionClick ? 'pointer' : 'default' }}
                 barSize={70}
               >
