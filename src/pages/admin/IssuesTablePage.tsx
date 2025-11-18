@@ -9,6 +9,7 @@ import Modal from "../../components/ui/Modal";
 import Button from "../../components/ui/Button";
 import IssueDetailModal from "../../components/report/IssueDetailModal";
 import Pagination from "../../components/ui/Pagination";
+import { getStatusColors } from "../../constants/statusColors";
 
 export default function IssuesTablePage() {
   const { user } = useAuth();
@@ -232,12 +233,12 @@ export default function IssuesTablePage() {
             value={search} 
             onChange={(e) => { setSearch(e.target.value); setPage(1); }} 
             placeholder="Search title, description, address, ID" 
-            className="rounded-xl border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            className="rounded-xl border-2 border-gray-200 px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-colors shadow-sm"
           />
           <select 
             value={category} 
             onChange={(e) => { setCategory(e.target.value); setPage(1); }} 
-            className="rounded-xl border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            className="rounded-xl border-2 border-gray-200 px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-colors shadow-sm bg-white"
           >
             <option value="">All Types</option>
             {typeOptions.map((c) => <option key={c} value={c}>{c}</option>)}
@@ -245,7 +246,7 @@ export default function IssuesTablePage() {
           <select 
             value={stateCode} 
             onChange={(e) => { setStateCode(e.target.value); setPage(1); }} 
-            className="rounded-xl border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            className="rounded-xl border-2 border-gray-200 px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-colors shadow-sm bg-white"
           >
             <option value="">All States</option>
             {(stateCodesData || []).map((sc: string) => (
@@ -255,7 +256,7 @@ export default function IssuesTablePage() {
           <select 
             value={assignedToFilter} 
             onChange={(e) => { setAssignedToFilter(e.target.value); setPage(1); }} 
-            className="rounded-xl border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            className="rounded-xl border-2 border-gray-200 px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-colors shadow-sm bg-white"
           >
             <option value="any">Any Assignment</option>
             <option value="unassigned">Unassigned</option>
@@ -296,15 +297,15 @@ export default function IssuesTablePage() {
         </div>
       </div>
       
-      <div className="flex items-center justify-between flex-wrap gap-3 p-3 bg-gray-50 rounded-xl">
+      <div className="flex items-center justify-between flex-wrap gap-3 p-3 bg-gradient-to-r from-indigo-50 to-white rounded-xl">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-gray-700">Sort by:</span>
+          <span className="text-sm font-semibold text-gray-700">Sort by:</span>
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as any)}
-            className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            className="rounded-lg border-2 border-gray-300 px-3 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-colors shadow-sm bg-white"
           >
-            <option value="created_at">Created At</option>
+            <option value="created_at">Created Date</option>
             <option value="updated_at">Last Updated</option>
             <option value="id">ID</option>
             <option value="title">Title</option>
@@ -315,7 +316,7 @@ export default function IssuesTablePage() {
           </select>
           <button
             onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
-            className="px-3 py-1.5 rounded-lg border border-gray-300 bg-white hover:bg-gray-50 text-sm"
+            className="px-3 py-1.5 rounded-lg border-2 border-gray-300 bg-white hover:bg-gray-50 text-sm font-medium transition-colors shadow-sm"
             title={sortOrder === "asc" ? "Ascending" : "Descending"}
           >
             {sortOrder === "asc" ? "↑" : "↓"}
@@ -352,17 +353,13 @@ export default function IssuesTablePage() {
           </thead>
           <tbody>
             {paginatedIssues.length > 0 ? paginatedIssues.map((it: any) => {
-              const statusColors: Record<string, string> = {
-                pending: "bg-amber-100 text-amber-800",
-                in_progress: "bg-yellow-100 text-yellow-800",
-                resolved: "bg-emerald-100 text-emerald-800",
-              };
-              const statusColor = statusColors[it.status] || "bg-gray-100 text-gray-800";
+              const status = (it.status || "pending") as "pending" | "in_progress" | "resolved";
+              const colors = getStatusColors(status);
               const canModify = canModifyIssue(it);
               
               return (
                 <tr key={it.id} className="odd:bg-white even:bg-gray-50 hover:bg-indigo-50 transition-colors">
-                  <td className="p-3 font-mono text-indigo-600">#{it.id}</td>
+                  <td className="p-3 font-mono text-indigo-600 font-bold">Issue #{it.id}</td>
                   <td className="p-3 max-w-[32ch]">
                     <button
                       onClick={() => setDetailIssueId(it.id)}
@@ -372,8 +369,8 @@ export default function IssuesTablePage() {
                     </button>
                   </td>
                   <td className="p-3">
-                    <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${statusColor}`}>
-                      {it.status?.replace("_", " ").replace(/\b\w/g, (l: string) => l.toUpperCase())}
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${colors.badge}`}>
+                      {status.replace("_", " ").replace(/\b\w/g, (l: string) => l.toUpperCase())}
                     </span>
                   </td>
                   <td className="p-3">{it.category || "—"}</td>

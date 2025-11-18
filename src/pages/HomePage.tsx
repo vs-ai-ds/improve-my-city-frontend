@@ -14,13 +14,12 @@ import { useIssueTypes } from "../hooks/useIssueTypes";
 import { requireAuthAndOpenReport } from "../lib/requireAuthAndOpenReport";
 import RecentActivityRotator from "../components/dashboard/RecentActivityRotator";
 import IssueTypeChart from "../components/dashboard/IssueTypeChart";
+import RegionChart from "../components/dashboard/RegionChart";
 import StatusPie from "../components/dashboard/StatusPie";
 import Pagination from "../components/ui/Pagination";
+import SearchableSelect from "../components/ui/SearchableSelect";
+import { getStatusColors } from "../constants/statusColors";
 
-// Charts (Recharts)
-import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip,
-} from "recharts";
 
 /** Toggle demo placeholders if backend is empty */
 const USE_DEMO = false;
@@ -38,60 +37,10 @@ function prettyDuration(sec?: number) {
   return [d ? `${d}d` : null, h ? `${h}h` : null, m ? `${m}m` : null].filter(Boolean).join(" ") || "0m";
 }
 
-/** Generic bar for simple name/count data */
-function SimpleBar({
-  data, xKey = "name", yKey = "count", onBarClick,
-}: { 
-  data: any[]; 
-  xKey?: string; 
-  yKey?: string; 
-  onBarClick?: (name: string) => void;
-}) {
-  return (
-    <div className="h-[550px]">
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data} margin={{ top: 20, right: 20, left: 60, bottom: 80 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" opacity={0.3} />
-          <XAxis 
-            dataKey={xKey} 
-            angle={-45}
-            textAnchor="end"
-            height={100}
-            tick={{ fontSize: 12, fill: '#374151', fontWeight: 'bold' }}
-            interval={0}
-          />
-          <YAxis 
-            allowDecimals={false} 
-            tick={{ fontSize: 12, fill: '#374151', fontWeight: 'bold' }}
-            label={{ value: 'Number of Issues', angle: -90, position: 'insideLeft', style: { textAnchor: 'middle', fill: '#374151', fontWeight: 'bold', fontSize: '13px' } }}
-          />
-          <Tooltip 
-            cursor={{ fill: 'rgba(16, 185, 129, 0.1)' }}
-            contentStyle={{ 
-              backgroundColor: 'white', 
-              border: '1px solid #e5e7eb', 
-              borderRadius: '8px',
-              padding: '8px 12px',
-              fontWeight: 'bold'
-            }}
-          />
-          <Bar 
-            dataKey={yKey} 
-            fill="#10b981"
-            radius={[0, 0, 0, 0]}
-            onClick={(data: any) => onBarClick?.(data[xKey])}
-            style={{ cursor: onBarClick ? 'pointer' : 'default' }}
-            barSize={60}
-          />
-        </BarChart>
-      </ResponsiveContainer>
-    </div>
-  );
-}
 
 export default function HomePage() {
   // Filters / UI state
-  const [range, setRange] = useState<RangeKey>("7d");
+  const [range, setRange] = useState<RangeKey>("30d");
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
   const [category, setCategory] = useState("");
@@ -340,24 +289,24 @@ export default function HomePage() {
             </div>
 
             {/* Right: Status Breakdown + Recent Activity side by side */}
-            <div className="grid grid-cols-2 gap-3 items-stretch">
-              <div className="rounded-2xl bg-gradient-to-br from-white to-gray-50 p-4 shadow-lg ring-1 ring-gray-200 flex flex-col">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-stretch">
+              <div className="rounded-2xl bg-gradient-to-br from-white to-gray-50 p-3 sm:p-4 shadow-lg ring-1 ring-gray-200 flex flex-col">
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-base font-bold text-gray-800 flex items-center gap-2">
+                  <h3 className="text-sm sm:text-base font-bold text-gray-800 flex items-center gap-2">
                     <span className="w-1 h-5 bg-amber-500 rounded"></span>
                     Status Breakdown
                   </h3>
-                  <span className="text-xs text-gray-500 font-medium">All Time</span>
+                  <span className="text-xs text-gray-500 font-medium hidden sm:inline">All Time</span>
                 </div>
                 {pieData.length ? (
                   <div className="flex flex-col">
                     <StatusPie data={pieData} onPick={(picked) => { setStatus(picked); setPage(1); }} />
                     {status && (
                       <button 
-                        className="mt-2 w-full px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-xs font-medium text-gray-700 transition-colors" 
+                        className="mt-2 w-full px-4 py-2 rounded-lg bg-indigo-100 hover:bg-indigo-200 text-indigo-700 text-sm font-semibold transition-colors shadow-sm border border-indigo-200" 
                         onClick={() => setStatus("")}
                       >
-                        Clear Filter
+                        ✕ Clear Filter
                       </button>
                     )}
                   </div>
@@ -368,9 +317,9 @@ export default function HomePage() {
                 )}
               </div>
 
-              <div className="rounded-2xl bg-gradient-to-br from-white to-gray-50 p-4 shadow-lg ring-1 ring-gray-200 flex flex-col">
+              <div className="rounded-2xl bg-gradient-to-br from-white to-gray-50 p-3 sm:p-4 shadow-lg ring-1 ring-gray-200 flex flex-col">
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-base font-bold text-gray-800 flex items-center gap-2">
+                  <h3 className="text-sm sm:text-base font-bold text-gray-800 flex items-center gap-2">
                     <span className="w-1 h-5 bg-blue-500 rounded"></span>
                     Recent Activity
                   </h3>
@@ -404,7 +353,7 @@ export default function HomePage() {
           </div>
 
           {/* Row 1: Issue Type Chart (full width) */}
-          <div className="mt-4">
+          <div className="mt-4 overflow-x-auto">
             <IssueTypeChart 
               range={range} 
               onTypeClick={(type) => { setCategory(type); setPage(1); }}
@@ -414,45 +363,13 @@ export default function HomePage() {
           </div>
 
           {/* Row 2: Region bar (full width) */}
-          <div className="mt-4 grid grid-cols-1 gap-3">
-            {regionBarData.length ? (
-              <div className="rounded-2xl bg-gradient-to-br from-white to-gray-50 p-5 shadow-lg ring-1 ring-gray-200">
-                <div className="mb-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                        <span className="w-1 h-6 bg-emerald-600 rounded"></span>
-                        Issues by Region
-                      </h3>
-                      <p className="text-xs text-gray-500 italic mt-1 ml-5">(Click a bar to filter issues by region)</p>
-                    </div>
-                    {stateCode && (
-                      <button
-                        onClick={() => { setStateCode(""); setPage(1); }}
-                        className="px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-xs font-medium text-gray-700 transition-colors"
-                      >
-                        Clear Filter
-                      </button>
-                    )}
-                  </div>
-                </div>
-                <SimpleBar 
-                  data={regionBarData} 
-                  onBarClick={(sc) => {
-                    setStateCode(sc);
-                    setPage(1);
-                  }}
-                />
-              </div>
-            ) : (
-              <div className="rounded-2xl bg-gradient-to-br from-white to-gray-50 p-6 shadow-lg ring-1 ring-gray-200">
-                <h3 className="text-lg font-bold text-gray-800 mb-2 flex items-center gap-2">
-                  <span className="w-1 h-6 bg-emerald-600 rounded"></span>
-                  Issues by Region
-                </h3>
-                <div className="mt-2 text-sm text-gray-600 text-center">No regional data yet — you'll see a distribution here.</div>
-              </div>
-            )}
+          <div className="mt-4 overflow-x-auto">
+            <RegionChart 
+              range={range} 
+              onRegionClick={(state) => { setStateCode(state); setPage(1); }}
+              selectedState={stateCode}
+              onClearFilter={() => { setStateCode(""); setPage(1); }}
+            />
           </div>
         </div>
       </section>
@@ -460,117 +377,141 @@ export default function HomePage() {
       {/* FILTERS + RESULTS (connected card) */}
       <section id="issues" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
         <div className="rounded-2xl border bg-white overflow-hidden shadow-sm">
-          <div className="p-4 border-b grid md:grid-cols-5 gap-3">
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search issues"
-              className="rounded-xl border border-gray-200 p-2 md:col-span-2 focus:outline-none focus:ring-2 focus:ring-indigo-400"
-            />
-            <select
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-              className="cursor-pointer rounded-xl border p-2 focus:outline-none focus:ring-2 focus:ring-indigo-400"
-            >
-              <option value="">All statuses</option>
-              <option value="pending">Pending</option>
-              <option value="in_progress">In progress</option>
-              <option value="resolved">Resolved</option>
-            </select>
-            <select
-              value={category}
-              onChange={(e) => { setCategory(e.target.value); setPage(1); }}
-              className="cursor-pointer rounded-xl border p-2 focus:outline-none focus:ring-2 focus:ring-indigo-400"
-            >
-              <option value="">All categories</option>
-              {typeOptions.map((c) => <option key={c} value={c}>{c}</option>)}
-            </select>
-            <select
-              value={stateCode}
-              onChange={(e) => { setStateCode(e.target.value); setPage(1); }}
-              className="cursor-pointer rounded-xl border p-2 focus:outline-none focus:ring-2 focus:ring-indigo-400"
-            >
-              <option value="">All states</option>
-              {Array.from(new Set(regionBarData.map(r => r.name))).map((sc) => (
-                <option key={sc} value={sc}>{sc}</option>
-              ))}
-            </select>
+          <div className="p-4 border-b bg-gradient-to-r from-indigo-50 to-white">
+            <h2 className="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+              <span className="w-1 h-8 bg-indigo-600 rounded"></span>
+              Issues List
+            </h2>
+            <div className="grid md:grid-cols-5 gap-3">
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search issues by title, description..."
+                className="rounded-xl border-2 border-gray-200 px-4 py-2.5 md:col-span-2 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-colors shadow-sm"
+              />
+              <select
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+                className="cursor-pointer rounded-xl border-2 border-gray-200 px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-colors shadow-sm bg-white"
+              >
+                <option value="">All statuses</option>
+                <option value="pending">Pending</option>
+                <option value="in_progress">In progress</option>
+                <option value="resolved">Resolved</option>
+              </select>
+              <SearchableSelect
+                value={category}
+                onChange={(value) => { setCategory(value); setPage(1); }}
+                options={typeOptions}
+                placeholder="All categories"
+                className="md:col-span-1"
+              />
+              <SearchableSelect
+                value={stateCode}
+                onChange={(value) => { setStateCode(value); setPage(1); }}
+                options={Array.from(new Set(regionBarData.map(r => r.name)))}
+                placeholder="All states"
+                className="md:col-span-1"
+              />
             {user && (
-              <label className="flex items-center gap-2 text-sm cursor-pointer">
-                <input type="checkbox" checked={mineOnly} onChange={(e) => { setMineOnly(e.target.checked); setPage(1); }} className="h-4 w-4" />
-                My issues
+              <label className="flex items-center gap-2 text-sm cursor-pointer px-4 py-2.5 rounded-xl border-2 border-gray-200 hover:border-indigo-300 transition-colors bg-white shadow-sm">
+                <input type="checkbox" checked={mineOnly} onChange={(e) => { setMineOnly(e.target.checked); setPage(1); }} className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                <span className="font-medium text-gray-700">My issues</span>
               </label>
             )}
+            </div>
           </div>
 
-          <div className="p-4 border-b bg-gray-50 flex items-center justify-between flex-wrap gap-3">
+          <div className="p-4 border-b bg-gradient-to-r from-indigo-50 to-white flex items-center justify-between flex-wrap gap-3">
             <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-gray-700">Sort by:</span>
+              <span className="text-sm font-semibold text-gray-700">Sort by:</span>
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as any)}
-                className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                className="rounded-lg border-2 border-gray-300 px-3 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-colors shadow-sm bg-white"
               >
-                <option value="date">Date</option>
+                <option value="date">Created Date</option>
                 <option value="title">Title</option>
                 <option value="status">Status</option>
               </select>
               <button
                 onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
-                className="px-3 py-1.5 rounded-lg border border-gray-300 bg-white hover:bg-gray-50 text-sm"
+                className="px-3 py-1.5 rounded-lg border-2 border-gray-300 bg-white hover:bg-gray-50 text-sm font-medium transition-colors shadow-sm"
                 title={sortOrder === "asc" ? "Ascending" : "Descending"}
               >
                 {sortOrder === "asc" ? "↑" : "↓"}
               </button>
             </div>
-            <div className="text-sm text-gray-600">
+            <div className="text-sm font-semibold text-gray-700 px-4 py-1.5 rounded-lg bg-white border-2 border-gray-200 shadow-sm">
               {sortedIssues.length} issue{sortedIssues.length !== 1 ? "s" : ""}
             </div>
           </div>
 
           <div className="p-4 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {sortedIssues.map((it: Issue) => {
-              const statusColors: Record<string, string> = {
-                pending: "bg-amber-50 border-amber-200 hover:border-amber-300",
-                in_progress: "bg-yellow-50 border-yellow-200 hover:border-yellow-300",
-                resolved: "bg-emerald-50 border-emerald-200 hover:border-emerald-300",
-              };
-              const statusBadgeColors: Record<string, string> = {
-                pending: "bg-amber-100 text-amber-800 border-amber-300",
-                in_progress: "bg-yellow-100 text-yellow-800 border-yellow-300",
-                resolved: "bg-emerald-100 text-emerald-800 border-emerald-300",
-              };
-              const cardBg = statusColors[it.status || ""] || "bg-white border-gray-200 hover:border-gray-300";
-              const statusColor = statusBadgeColors[it.status || ""] || "bg-gray-100 text-gray-800 border-gray-300";
+            {sortedIssues.map((it: any) => {
+              const status = (it.status || "pending") as "pending" | "in_progress" | "resolved";
+              const colors = getStatusColors(status);
+              const isResolved = status === "resolved";
+              
+              const title = it.title || "Issue";
+              const titleTruncated = title.length > 50 ? title.substring(0, 50) : title;
+              const titleIsTruncated = title.length > 50;
               
               return (
                 <div 
                   key={it.id} 
                   onClick={() => setDetailId(it.id)}
-                  className={`group rounded-2xl border-2 ${cardBg} p-5 shadow-md ring-1 ring-gray-200 transition-all hover:-translate-y-1 hover:shadow-xl cursor-pointer`}
+                  className={`group rounded-2xl border-2 ${colors.bg} ${colors.border} ${colors.hover} p-4 shadow-md ring-1 ring-gray-200 transition-all hover:-translate-y-1 hover:shadow-xl cursor-pointer`}
                 >
                   <div className="flex items-start justify-between mb-2">
-                    <div className="text-xs font-semibold text-indigo-600">#{it.id}</div>
-                    <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${statusColor}`}>
-                      {it.status?.replace("_", " ").replace(/\b\w/g, l => l.toUpperCase()) || "Unknown"}
+                    <div className="text-xs font-mono font-bold text-indigo-600">Issue #{it.id}</div>
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${colors.badge}`}>
+                      {status.replace("_", " ").replace(/\b\w/g, l => l.toUpperCase())}
                     </span>
                   </div>
-                  <h3 className="font-bold text-gray-900 mb-2 line-clamp-2 group-hover:text-indigo-600 transition-colors">
-                    {it.title}
-                  </h3>
-                  <p className="text-sm text-gray-600 line-clamp-3 mb-3">{it.description || "No description"}</p>
-                  <div className="flex items-center gap-2 text-xs text-gray-500 mb-3">
-                    <span className="flex items-center gap-1">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                      </svg>
-                      {it.category || "Uncategorized"}
-                    </span>
-                    <span>•</span>
-                    <span>{it.created_at ? new Date(it.created_at).toLocaleDateString() : ""}</span>
+                  
+                  <div className="text-xs text-gray-600 mb-2">
+                    {it.category || "Uncategorized"}
                   </div>
-                  {isTeam && it.status !== "resolved" && (
-                    <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                  
+                  {titleIsTruncated ? (
+                    <h3 
+                      className="font-bold text-gray-900 mb-2 line-clamp-1 group-hover:text-indigo-600 transition-colors"
+                      title={title}
+                    >
+                      {titleTruncated}...
+                    </h3>
+                  ) : (
+                    <h3 className="font-bold text-gray-900 mb-2 line-clamp-1 group-hover:text-indigo-600 transition-colors">
+                      {title}
+                    </h3>
+                  )}
+                  
+                  {it.address && (
+                    <div className="text-xs text-gray-600 mb-2 flex items-start gap-1">
+                      <span className="mt-0.5">📍</span>
+                      <span className="flex-1">{it.address}</span>
+                    </div>
+                  )}
+                  
+                  <div className="text-xs text-gray-600 mb-1">
+                    Created: {it.created_at ? new Date(it.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ""}
+                  </div>
+                  
+                  {!isResolved && it.assigned_to_name && (
+                    <div className="text-xs text-gray-600 mb-1">
+                      Assigned: {it.assigned_to_name}
+                    </div>
+                  )}
+                  
+                  {isResolved && it.resolved_at && (
+                    <div className="text-xs text-emerald-700 font-medium">
+                      Resolved: {new Date(it.resolved_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </div>
+                  )}
+                  
+                  {isTeam && !isResolved && (
+                    <div className="flex gap-2 mt-3" onClick={(e) => e.stopPropagation()}>
                       <button 
                         type="button" 
                         onClick={() => markStatus(it.id, "in_progress")} 

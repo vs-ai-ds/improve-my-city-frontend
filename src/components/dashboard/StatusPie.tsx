@@ -1,5 +1,6 @@
 // File: src/components/dashboard/StatusPie.tsx
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
+import { STATUS_COLORS } from "../../constants/statusColors";
 
 const capitalize = (str: string) => {
   const replaced = str.replace(/_/g, " ");
@@ -13,11 +14,6 @@ export default function StatusPie({
   data: { name: string; value: number }[];
   onPick: (status: string) => void;
 }) {
-  const COLORS: Record<string, string> = {
-    pending: "#f59e0b",
-    in_progress: "#eab308", 
-    resolved: "#10b981",
-  };
   
   const total = data.reduce((sum, d) => sum + d.value, 0);
   
@@ -64,13 +60,13 @@ export default function StatusPie({
     );
   };
 
-  const outerRadius = 110;
+  const outerRadius =   100;
   const chartHeight = outerRadius * 2 + 40;
   const totalHeight = chartHeight + 40;
 
   return (
     <div className="flex flex-col" style={{ minHeight: `${totalHeight}px` }}>
-      <div style={{ height: `${chartHeight}px`, width: '100%' }}>
+      <div style={{ height: `${chartHeight}px`, width: '100%', minHeight: '180px' }}>
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
@@ -83,7 +79,7 @@ export default function StatusPie({
               labelLine={false}
             >
               {data.map((entry, i) => (
-                <Cell key={i} fill={COLORS[entry.name] || "#9ca3af"} />
+                <Cell key={i} fill={STATUS_COLORS[entry.name as keyof typeof STATUS_COLORS].chart} />
               ))}
             </Pie>
             <Tooltip content={<CustomTooltip />} />

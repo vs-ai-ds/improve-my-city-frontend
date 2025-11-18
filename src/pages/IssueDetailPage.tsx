@@ -99,7 +99,7 @@ export default function IssueDetailPage() {
 
   const bgGradient = {
     pending: "from-amber-50 to-orange-50",
-    in_progress: "from-yellow-50 to-amber-50",
+    in_progress: "from-yellow-50 to-yellow-100",
     resolved: "from-emerald-50 to-teal-50",
   }[issueData.status as keyof typeof statusColors] || "from-gray-50 to-white";
 

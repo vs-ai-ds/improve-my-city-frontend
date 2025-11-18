@@ -58,27 +58,27 @@ export default function Header() {
   return (
     <>
       <header className="sticky top-0 z-40 border-b bg-white/80 backdrop-blur shadow-sm">
-        <div className="mx-auto max-w-7xl px-4 py-3 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 shadow" />
-            <motion.span initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} className="font-bold tracking-tight">
-              Improve<span className="text-indigo-600">My</span>City
+        <div className="mx-auto max-w-7xl px-2 sm:px-4 py-2 sm:py-3 flex items-center justify-between">
+          <Link to="/" className="flex items-center gap-1 sm:gap-2">
+            <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 shadow" />
+            <motion.span initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} className="font-bold tracking-tight text-sm sm:text-base">
+              <span className="hidden sm:inline">Improve</span><span className="sm:hidden">IMC</span><span className="text-indigo-600">My</span>City
             </motion.span>
           </Link>
 
-          <nav className="flex items-center gap-1">
+          <nav className="flex items-center gap-0.5 sm:gap-1">
             <NavLink to="/" className={({ isActive }) => `${linkBase} ${isActive ? linkActive : linkIdle}`}>
-              <span className="inline-flex items-center gap-1"><Home className="h-4 w-4" /> Home</span>
+              <span className="inline-flex items-center gap-1"><Home className="h-4 w-4" /> <span className="hidden sm:inline">Home</span></span>
             </NavLink>
 
             {isTeam && (
               <NavLink to="/admin" className={({ isActive }) => `${linkBase} ${isActive ? linkActive : linkIdle}`}>
-                <span className="inline-flex items-center gap-1"><LayoutDashboard className="h-4 w-4" /> Admin</span>
+                <span className="inline-flex items-center gap-1"><LayoutDashboard className="h-4 w-4" /> <span className="hidden sm:inline">Admin</span></span>
               </NavLink>
             )}
 
             <button onClick={onReportClick} className={`${linkBase} ${linkIdle}`}>
-              <span className="inline-flex items-center gap-1"><FilePlus2 className="h-4 w-4" /> Report</span>
+              <span className="inline-flex items-center gap-1"><FilePlus2 className="h-4 w-4" /> <span className="hidden sm:inline">Report</span></span>
             </button>
 
             {!isLoggedIn ? (

@@ -3,7 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import type { RangeKey } from "../../services/stats.api";
 import { getByType } from "../../services/stats.api";
 import { api } from "../../services/apiClient";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend, LabelList, Cell } from "recharts";
+import { STATUS_COLORS } from "../../constants/statusColors";
 
 export default function IssueTypeChart({ 
   range, 
@@ -80,9 +81,9 @@ export default function IssueTypeChart({
             {selectedCategory && onClearFilter && (
               <button
                 onClick={onClearFilter}
-                className="px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-xs font-medium text-gray-700 transition-colors"
+                className="px-4 py-2 rounded-lg bg-indigo-100 hover:bg-indigo-200 text-indigo-700 text-sm font-semibold transition-colors shadow-sm border border-indigo-200"
               >
-                Clear Filter
+                ✕ Clear Filter
               </button>
             )}
             {items.length > itemsPerPage && (
@@ -110,12 +111,17 @@ export default function IssueTypeChart({
         </div>
       </div>
 
-      <div className="h-[550px]">
+      <div className="h-[400px] sm:h-[550px] md:h-[650px] w-full">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={visibleItems} margin={{ top: 20, right: 20, left: 60, bottom: 150 }}>
+          <BarChart 
+            data={visibleItems} 
+            margin={{ top: 20, right: 10, left: 40, bottom: 0 }}
+            barCategoryGap="15%"
+          >
             <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" opacity={0.3} />
             <XAxis 
               dataKey="name" 
+              padding={{ left: 0, right: 0 }}
               angle={-45}
               textAnchor="end"
               height={100}
@@ -131,10 +137,11 @@ export default function IssueTypeChart({
               cursor={{ fill: 'rgba(99, 102, 241, 0.1)' }}
               contentStyle={{ 
                 backgroundColor: 'white', 
-                border: '1px solid #e5e7eb', 
-                borderRadius: '8px',
-                padding: '8px 12px',
-                fontWeight: 'bold'
+                border: '2px solid #6366f1', 
+                borderRadius: '12px',
+                padding: '12px 16px',
+                fontWeight: 'bold',
+                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
               }}
               formatter={(value: number, name: string) => [
                 value, 
@@ -146,45 +153,97 @@ export default function IssueTypeChart({
                 <Bar 
                   dataKey="pending" 
                   stackId="a"
-                  fill="#f59e0b"
+                  fill={STATUS_COLORS.pending.chart}
                   onClick={(data: any) => onTypeClick?.(data.name)}
                   style={{ cursor: onTypeClick ? 'pointer' : 'default' }}
                   radius={[0, 0, 0, 0]}
-                  barSize={60}
-                />
+                  barSize={70}
+                >
+                  <LabelList 
+                    dataKey="pending" 
+                    position="inside" 
+                    fill="#ffffff" 
+                    fontSize={11}
+                    fontWeight="bold"
+                    formatter={(value: number) => value > 0 ? value : ''}
+                  />
+                </Bar>
                 <Bar 
                   dataKey="in_progress" 
                   stackId="a"
-                  fill="#eab308"
+                  fill={STATUS_COLORS.in_progress.chart}
                   onClick={(data: any) => onTypeClick?.(data.name)}
                   style={{ cursor: onTypeClick ? 'pointer' : 'default' }}
                   radius={[0, 0, 0, 0]}
-                  barSize={60}
-                />
+                  barSize={70}
+                >
+                  <LabelList 
+                    dataKey="in_progress" 
+                    position="inside" 
+                    fill="#ffffff" 
+                    fontSize={11}
+                    fontWeight="bold"
+                    formatter={(value: number) => value > 0 ? value : ''}
+                  />
+                </Bar>
                 <Bar 
                   dataKey="resolved" 
                   stackId="a"
-                  fill="#10b981"
+                  fill={STATUS_COLORS.resolved.chart}
                   radius={[0, 0, 0, 0]}
                   onClick={(data: any) => onTypeClick?.(data.name)}
                   style={{ cursor: onTypeClick ? 'pointer' : 'default' }}
-                  barSize={60}
-                />
+                  barSize={70}
+                >
+                  {visibleItems.map((entry, index) => (
+                    <Cell
+                      key={`cell-${index}`}
+                      onClick={(data: any) => onTypeClick?.(data.name)}
+                      style={{ cursor: onTypeClick ? 'pointer' : 'default' }}
+                    />
+                  ))}
+                  <LabelList 
+                    dataKey="resolved" 
+                    position="inside" 
+                    fill="#ffffff" 
+                    fontSize={11}
+                    fontWeight="bold"
+                    formatter={(value: number) => value > 0 ? value : ''}
+                  />
+                  <LabelList
+                    dataKey="total"
+                    position="top" 
+                    fill="#374151" 
+                    fontSize={12}
+                    fontWeight="bold"
+                    offset={5}                    
+                  />
+                </Bar>
               </>
             ) : (
               <Bar 
                 dataKey="total" 
                 fill="#6366f1"
-                radius={[0, 0, 0, 0]}
+                radius={[4, 4, 0, 0]}
                 onClick={(data: any) => onTypeClick?.(data.name)}
                 style={{ cursor: onTypeClick ? 'pointer' : 'default' }}
-                barSize={60}
-              />
+                barSize={70}
+              >
+                <LabelList 
+                  dataKey="total" 
+                  position="top" 
+                  fill="#374151" 
+                  fontSize={12}
+                  fontWeight="bold"
+                  offset={5}
+                />
+              </Bar>
             )}
             <Legend 
-              wrapperStyle={{ paddingTop: '10px', paddingBottom: '0px', fontWeight: 'bold' }}
+              wrapperStyle={{ paddingTop: '0px', paddingBottom: '0px', fontWeight: 'bold', marginBottom: 0, bottom: 10 }}
               formatter={(value: string) => value.replace("_", " ").replace(/\b\w/g, (l: string) => l.toUpperCase())}
               verticalAlign="bottom"
+              align="center"
             />
           </BarChart>
         </ResponsiveContainer>

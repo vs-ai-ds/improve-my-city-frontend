@@ -69,18 +69,18 @@ export default function Pagination({
   if (totalPages <= 1) return null;
 
   return (
-    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 bg-gray-50 rounded-xl">
-      <div className="text-sm text-gray-600">
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 bg-gradient-to-r from-indigo-50 to-white rounded-xl border-t">
+      <div className="text-sm font-semibold text-gray-700 px-4 py-2 rounded-lg bg-white border-2 border-gray-200 shadow-sm">
         {showingFrom !== undefined && showingTo !== undefined && totalItems !== undefined ? (
           <>
-            Showing <span className="font-medium">{showingFrom}</span> to{" "}
-            <span className="font-medium">{showingTo}</span> of{" "}
-            <span className="font-medium">{totalItems}</span> results
+            Showing <span className="font-bold text-indigo-600">{showingFrom}</span> to{" "}
+            <span className="font-bold text-indigo-600">{showingTo}</span> of{" "}
+            <span className="font-bold text-indigo-600">{totalItems}</span> results
           </>
         ) : (
           <>
-            Page <span className="font-medium">{currentPage}</span> of{" "}
-            <span className="font-medium">{totalPages}</span>
+            Page <span className="font-bold text-indigo-600">{currentPage}</span> of{" "}
+            <span className="font-bold text-indigo-600">{totalPages}</span>
           </>
         )}
       </div>
