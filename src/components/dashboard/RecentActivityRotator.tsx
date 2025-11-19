@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../../services/apiClient";
 import { getStatusColors } from "../../constants/statusColors";
+import { CategoryIcon } from "../../utils/categoryIcons";
 
 type Activity = {
   issue_id: number;
@@ -10,6 +11,7 @@ type Activity = {
   title?: string;
   description?: string;
   address?: string;
+  category?: string;
   created_by?: string;
   resolved_at?: string | null;
   assigned_to_name?: string | null;
@@ -111,6 +113,13 @@ export default function RecentActivityRotator({
                     <span className="capitalize">{item.kind.replace("_", " ")}</span>
                   </span>
                 </div>
+                
+                {item.category && (
+                  <div className="flex items-center gap-1.5 mb-2 text-xs text-gray-600">
+                    <CategoryIcon category={item.category} className="w-3.5 h-3.5" />
+                    <span>{item.category}</span>
+                  </div>
+                )}
                 
                 {titleIsTruncated ? (
                   <div 

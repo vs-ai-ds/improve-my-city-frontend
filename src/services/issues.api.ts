@@ -39,8 +39,8 @@ export async function getIssue(id: number) {
   return data as Issue;
 }
 
-export async function updateIssueStatus(id: number, status: Issue["status"]) {
-  const { data } = await api.patch(`/issues/${id}/status`, { status });
+export async function updateIssueStatus(id: number, status: Issue["status"], comment?: string) {
+  const { data } = await api.patch(`/issues/${id}/status`, { status, comment });
   return data;
 }
 

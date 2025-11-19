@@ -7,7 +7,8 @@ export function requireAuthAndOpenReport() {
   if (user) {
     useReportModal.getState().openWith();
   } else {
-    // your AuthModal listens to this (or open your auth flow directly)
-    window.dispatchEvent(new CustomEvent("imc:open-auth", { detail: { view: "login" } }));
+    window.dispatchEvent(new CustomEvent("imc:open-auth", { 
+      detail: { view: "login", openReportAfterAuth: true } 
+    }));
   }
 }

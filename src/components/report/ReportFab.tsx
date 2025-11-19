@@ -2,7 +2,7 @@
 // Project: improve-my-city-frontend
 // Auto-added for reference
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import ReportModal from "./ReportModal";
 import AuthModal from "../auth/AuthModal";
 
@@ -16,8 +16,25 @@ export default function ReportFab() {
 
   function openFlow() {
     if (isLoggedIn()) setOpenReport(true);
-    else setOpenAuth(true);
+    else {
+      setOpenAuth(true);
+      window.dispatchEvent(new CustomEvent("imc:open-auth", { 
+        detail: { view: "login", openReportAfterAuth: true } 
+      }));
+    }
   }
+
+  useEffect(() => {
+    function onAuthSuccess(e: any) {
+      const shouldOpen = e?.detail?.openReport !== false;
+      if (shouldOpen) {
+        setOpenAuth(false);
+        setOpenReport(true);
+      }
+    }
+    window.addEventListener("imc:auth-success", onAuthSuccess);
+    return () => window.removeEventListener("imc:auth-success", onAuthSuccess);
+  }, []);
 
   return (
     <>

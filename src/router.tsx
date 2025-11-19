@@ -11,6 +11,8 @@ import AdminLayout from "./pages/admin/AdminLayout";
 import AdminSettingsPage from "./pages/AdminSettingsPage";
 import AdminUsersPage from "./pages/admin/AdminUsersPage";
 import AdminLandingPage from "./pages/admin/AdminLandingPage";
+import VerifyEmailPage from "./pages/VerifyEmailPage";
+import ResetPage from "./pages/ResetPage";
 
 
 export const router = createBrowserRouter([
@@ -22,9 +24,11 @@ export const router = createBrowserRouter([
       { path: "report", element: <ReportPage /> },
       { path: "profile", element: <ProfilePage /> },
       { path: "issues/:id", element: <IssueDetailPage /> },
+      { path: "verify-email", element: <VerifyEmailPage /> },
+      { path: "reset-password", element: <ResetPage /> },
       {
         path: "/admin", element: <AdminLayout />, children: [
-        { index: true, element: <AdminLandingPage /> }, // <— landing
+        { index: true, element: <AdminLandingPage /> },
         { path: "issues", element: <IssuesTablePage /> },
         { path: "issue-types", element: <IssueTypesPage /> },
         { path: "users", element: <AdminUsersPage /> },

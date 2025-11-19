@@ -11,10 +11,12 @@ export type EmailOnly = { email: string };
 
 export async function me() { const { data } = await api.get("/auth/me"); return data; }
 
+
 export async function login(body: LoginIn) {
   const { data } = await api.post("/auth/login", body, {
     headers: { "Content-Type": "application/json" },
-  });
+    skipAuthInterceptor: true,
+  } as Record<string, unknown>);
   return data;
 }
 

@@ -7,6 +7,7 @@ import { useAuth } from "../../store/useAuth";
 import { useToast } from "../../components/toast/ToastProvider";
 import Modal from "../../components/ui/Modal";
 import Button from "../../components/ui/Button";
+import Input from "../../components/ui/Input";
 import IssueDetailModal from "../../components/report/IssueDetailModal";
 import Pagination from "../../components/ui/Pagination";
 import { getStatusColors } from "../../constants/statusColors";
@@ -28,6 +29,8 @@ export default function IssuesTablePage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [reassignIssue, setReassignIssue] = useState<{ id: number; currentUserId?: number } | null>(null);
+  const [statusChangeModal, setStatusChangeModal] = useState<{ id: number; status: "in_progress" | "resolved"; comment: string } | null>(null);
+  const [assignSearch, setAssignSearch] = useState("");
   
   const { data: types } = useIssueTypes();
   const typeOptions = useMemo(() => 
@@ -175,10 +178,11 @@ export default function IssuesTablePage() {
   };
 
   const statusMut = useMutation({
-    mutationFn: ({ id, status }: { id: number; status: "pending" | "in_progress" | "resolved" }) => 
-      updateIssueStatus(id, status),
+    mutationFn: ({ id, status, comment }: { id: number; status: "pending" | "in_progress" | "resolved"; comment?: string }) => 
+      updateIssueStatus(id, status, comment),
     onSuccess: () => {
       refetch();
+      setStatusChangeModal(null);
       toast.show("Status updated");
     },
     onError: (e: any) => toast.show(e?.response?.data?.detail || "Failed to update status"),
@@ -195,12 +199,16 @@ export default function IssuesTablePage() {
     onError: (e: any) => toast.show(e?.response?.data?.detail || "Failed to reassign"),
   });
 
-  const handleStatusChange = (issue: any, newStatus: "pending" | "in_progress" | "resolved") => {
+  const handleStatusChange = (issue: any, newStatus: "in_progress" | "resolved") => {
     if (!canModifyIssue(issue)) {
       toast.show("You don't have permission to modify this issue");
       return;
     }
-    statusMut.mutate({ id: issue.id, status: newStatus });
+    if (newStatus === "in_progress" && !issue.assigned_to_id) {
+      toast.show("Issue must be assigned before marking as in progress");
+      return;
+    }
+    setStatusChangeModal({ id: issue.id, status: newStatus, comment: "" });
   };
 
   const handleReassign = (issue: any, userId: number | null) => {
@@ -400,35 +408,32 @@ export default function IssuesTablePage() {
                     {it.updated_at ? new Date(it.updated_at).toLocaleDateString() : "—"}
                   </td>
                   <td className="p-3">
-                    <div className="flex gap-1 flex-wrap">
-                      {canModify && it.status !== "in_progress" && (
-                        <button 
-                          className="px-2 py-1 rounded border-2 border-yellow-300 bg-yellow-50 text-yellow-700 hover:bg-yellow-100 text-xs font-medium transition-colors" 
-                          onClick={() => handleStatusChange(it, "in_progress")}
-                          title="Mark in progress"
+                    {canModify ? (
+                      <div className="relative inline-block">
+                        <select
+                          className="rounded-lg border-2 border-indigo-300 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 px-3 py-1.5 text-xs font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                          value=""
+                          onChange={(e) => {
+                            const action = e.target.value;
+                            if (action === "assign") {
+                              setReassignIssue({ id: it.id, currentUserId: it.assigned_to_id || undefined });
+                            } else if (action === "in_progress") {
+                              handleStatusChange(it, "in_progress");
+                            } else if (action === "resolved") {
+                              handleStatusChange(it, "resolved");
+                            }
+                            e.target.value = "";
+                          }}
                         >
-                          ▶
-                        </button>
-                      )}
-                      {canModify && it.status !== "resolved" && (
-                        <button 
-                          className="px-2 py-1 rounded bg-emerald-600 text-white hover:bg-emerald-700 text-xs font-medium transition-colors" 
-                          onClick={() => handleStatusChange(it, "resolved")}
-                          title="Mark resolved"
-                        >
-                          ✓
-                        </button>
-                      )}
-                      {canModify && (
-                        <button 
-                          className="px-2 py-1 rounded border border-indigo-300 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 text-xs font-medium transition-colors" 
-                          onClick={() => setReassignIssue({ id: it.id, currentUserId: it.assigned_to_id || undefined })}
-                          title="Reassign"
-                        >
-                          ↻
-                        </button>
-                      )}
-                    </div>
+                          <option value="">Actions...</option>
+                          {!it.assigned_to_id && <option value="assign">Assign</option>}
+                          {it.assigned_to_id && it.status === "pending" && <option value="in_progress">Mark In Progress</option>}
+                          {it.assigned_to_id && it.status === "in_progress" && <option value="resolved">Mark Resolved</option>}
+                        </select>
+                      </div>
+                    ) : (
+                      <span className="text-gray-400 text-xs">—</span>
+                    )}
                   </td>
                 </tr>
               );
@@ -457,26 +462,51 @@ export default function IssuesTablePage() {
 
       <Modal
         open={!!reassignIssue}
-        onClose={() => setReassignIssue(null)}
-        title="Reassign Issue"
+        onClose={() => {
+          setReassignIssue(null);
+          setAssignSearch("");
+        }}
+        title="Assign Issue"
       >
         <div className="space-y-4 p-4">
+          {reassignIssue?.currentUserId && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
+              <strong>Currently assigned to:</strong> {
+                (staffAdminUsers || []).find((u: any) => u.id === reassignIssue?.currentUserId)?.name || 
+                (staffAdminUsers || []).find((u: any) => u.id === reassignIssue?.currentUserId)?.email || 
+                "Unknown"
+              }
+            </div>
+          )}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Assign to:
             </label>
+            <Input
+              value={assignSearch}
+              onChange={(e) => setAssignSearch(e.target.value)}
+              placeholder="Search by name or email..."
+              className="mb-2"
+            />
             <select
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400"
-              defaultValue={reassignIssue?.currentUserId ? String(reassignIssue.currentUserId) : "unassigned"}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400 max-h-60 overflow-y-auto"
+              size={Math.min((staffAdminUsers || []).length + 1, 8)}
               onChange={(e) => {
                 const userId = e.target.value === "unassigned" ? null : parseInt(e.target.value);
                 if (reassignIssue) {
                   handleReassign({ id: reassignIssue.id }, userId);
+                  setAssignSearch("");
                 }
               }}
             >
               <option value="unassigned">Unassigned</option>
-              {(staffAdminUsers || []).map((u: any) => (
+              {(staffAdminUsers || []).filter((u: any) => {
+                if (!assignSearch) return true;
+                const searchLower = assignSearch.toLowerCase();
+                return (u.name || "").toLowerCase().includes(searchLower) || 
+                       (u.email || "").toLowerCase().includes(searchLower) ||
+                       (u.role || "").toLowerCase().includes(searchLower);
+              }).map((u: any) => (
                 <option key={u.id} value={String(u.id)}>
                   {u.name || u.email} ({u.role})
                 </option>
@@ -484,8 +514,54 @@ export default function IssuesTablePage() {
             </select>
           </div>
           <div className="flex justify-end gap-2">
-            <Button variant="secondary" onClick={() => setReassignIssue(null)}>
+            <Button variant="secondary" onClick={() => {
+              setReassignIssue(null);
+              setAssignSearch("");
+            }}>
               Cancel
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        open={!!statusChangeModal}
+        onClose={() => setStatusChangeModal(null)}
+        title={statusChangeModal?.status === "in_progress" ? "Mark as In Progress" : "Resolve Issue"}
+      >
+        <div className="space-y-4 p-4">
+          <p className="text-sm text-gray-700">
+            {statusChangeModal?.status === "in_progress"
+              ? "Add a comment explaining what you're working on:"
+              : "Add a comment explaining how this issue was resolved:"}
+          </p>
+          <textarea
+            value={statusChangeModal?.comment || ""}
+            onChange={(e) => setStatusChangeModal(statusChangeModal ? { ...statusChangeModal, comment: e.target.value } : null)}
+            placeholder="Enter your comment..."
+            rows={4}
+            className="w-full rounded-xl border border-gray-200 bg-white/80 px-3 py-2 text-sm outline-none ring-0 focus:border-blue-500 focus:bg-white shadow-sm resize-y"
+          />
+          <div className="flex gap-2 justify-end">
+            <Button
+              variant="secondary"
+              onClick={() => setStatusChangeModal(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              disabled={!statusChangeModal?.comment?.trim() || statusMut.isPending}
+              onClick={() => {
+                if (statusChangeModal) {
+                  statusMut.mutate({ 
+                    id: statusChangeModal.id, 
+                    status: statusChangeModal.status, 
+                    comment: statusChangeModal.comment 
+                  });
+                }
+              }}
+            >
+              {statusMut.isPending ? "Updating…" : statusChangeModal?.status === "in_progress" ? "Mark In Progress" : "Resolve"}
             </Button>
           </div>
         </div>

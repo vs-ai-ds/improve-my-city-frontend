@@ -11,7 +11,9 @@ export default function Hero() {
   const { openWith } = useReportModal();
   function openReportOrLogin() {
     if (user) openWith();
-    else window.dispatchEvent(new CustomEvent("imc:open-auth", { detail: { view: "login" } }));
+    else window.dispatchEvent(new CustomEvent("imc:open-auth", { 
+      detail: { view: "login", openReportAfterAuth: true } 
+    }));
   }
   return (
     <section className="mx-auto max-w-7xl px-4 py-10 md:py-12">

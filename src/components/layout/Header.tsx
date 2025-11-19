@@ -28,6 +28,7 @@ export default function Header() {
   const isLoggedIn = !!user;
   const isTeam = !!user && ["staff", "admin", "super_admin"].includes(user.role);
   const [openAuth, setOpenAuth] = useState<false | "login" | "register" | "forgot">(false);
+  const [shouldOpenReportAfterAuth, setShouldOpenReportAfterAuth] = useState(false);
   const [menu, setMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
@@ -36,7 +37,10 @@ export default function Header() {
 
   function onReportClick() {
     if (isLoggedIn) openWith?.(); // open global report modal
-    else setOpenAuth("login");
+    else {
+      setShouldOpenReportAfterAuth(true);
+      setOpenAuth("login");
+    }
   }
 
   // Click-away to close profile menu
@@ -50,10 +54,27 @@ export default function Header() {
   }, [menu]);
 
   useEffect(() => {
-    function onOpenAuth(e: any) { setOpenAuth(e?.detail?.view || "login"); }
+    function onOpenAuth(e: any) { 
+      setOpenAuth(e?.detail?.view || "login");
+      if (e?.detail?.openReportAfterAuth) {
+        setShouldOpenReportAfterAuth(true);
+      }
+    }
     window.addEventListener("imc:open-auth", onOpenAuth);
     return () => window.removeEventListener("imc:open-auth", onOpenAuth);
   }, []);
+
+  useEffect(() => {
+    function onAuthSuccess(e: any) {
+      const shouldOpen = e?.detail?.openReport || shouldOpenReportAfterAuth;
+      if (shouldOpen) {
+        setShouldOpenReportAfterAuth(false);
+        setTimeout(() => openWith?.(), 100);
+      }
+    }
+    window.addEventListener("imc:auth-success", onAuthSuccess);
+    return () => window.removeEventListener("imc:auth-success", onAuthSuccess);
+  }, [shouldOpenReportAfterAuth, openWith]);
 
   return (
     <>
@@ -71,20 +92,23 @@ export default function Header() {
               <span className="inline-flex items-center gap-1"><Home className="h-4 w-4" /> <span className="hidden sm:inline">Home</span></span>
             </NavLink>
 
+            <button onClick={onReportClick} className={`${linkBase} ${linkIdle}`}>
+              <span className="inline-flex items-center gap-1"><FilePlus2 className="h-4 w-4" /> <span className="hidden sm:inline">Report</span></span>
+            </button>
+
             {isTeam && (
               <NavLink to="/admin" className={({ isActive }) => `${linkBase} ${isActive ? linkActive : linkIdle}`}>
                 <span className="inline-flex items-center gap-1"><LayoutDashboard className="h-4 w-4" /> <span className="hidden sm:inline">Admin</span></span>
               </NavLink>
             )}
 
-            <button onClick={onReportClick} className={`${linkBase} ${linkIdle}`}>
-              <span className="inline-flex items-center gap-1"><FilePlus2 className="h-4 w-4" /> <span className="hidden sm:inline">Report</span></span>
-            </button>
-
             {!isLoggedIn ? (
               <div className="ml-2">
                 <button
-                  onClick={() => setOpenAuth("login")}
+                  onClick={() => {
+                    setShouldOpenReportAfterAuth(false);
+                    setOpenAuth("login");
+                  }}
                   className="inline-flex items-center gap-2 rounded-2xl bg-indigo-600 px-4 py-2 text-white text-sm font-medium shadow hover:bg-indigo-700"
                 >
                   Sign in
@@ -94,13 +118,17 @@ export default function Header() {
               <div className="relative ml-2" ref={menuRef}>
                 <button onClick={() => setMenu((v) => !v)} className="inline-flex items-center gap-2 px-2 py-1.5 rounded-xl hover:bg-gray-100">
                   <Avatar name={user?.name} email={user!.email} />
-                  <div className="hidden sm:block text-sm text-gray-800 max-w-[140px] truncate">{user?.name || user?.email}</div>
+                  <div className="hidden sm:block text-sm text-gray-800 max-w-[140px]">
+                    <div className="truncate">{user?.name || user?.email}</div>
+                    {user?.role && user.role !== "citizen" && (
+                      <div className="text-xs text-gray-500 capitalize">{user.role.replace("_", " ")}</div>
+                    )}
+                  </div>
                   <ChevronDown className="h-4 w-4 text-gray-600" />
                 </button>
                 {menu && (
                   <div className="absolute right-0 mt-2 w-56 rounded-xl border bg-white shadow-lg ring-1 ring-black/5 p-1">
                     <NavLink to="/profile" className="block rounded-lg px-3 py-2 text-sm hover:bg-gray-50">Profile</NavLink>
-                    {isTeam && <NavLink to="/admin" className="block rounded-lg px-3 py-2 text-sm hover:bg-gray-50">Admin Console</NavLink>}
                     <button
                       onClick={() => { setMenu(false); logout(); }}
                       className="w-full text-left rounded-lg px-3 py-2 text-sm hover:bg-gray-50 text-red-700 inline-flex items-center gap-2"
@@ -116,7 +144,14 @@ export default function Header() {
       </header>
 
       {/* Mount modals here */}
-      <AuthModal open={!!openAuth} initialView={openAuth || "login"} onClose={() => setOpenAuth(false)} />
+      <AuthModal 
+        open={!!openAuth} 
+        initialView={openAuth || "login"} 
+        onClose={() => {
+          setOpenAuth(false);
+          setShouldOpenReportAfterAuth(false);
+        }}
+      />
       <ReportModal open={isOpen} onClose={close} />
     </>
   );

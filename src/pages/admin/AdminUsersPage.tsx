@@ -56,8 +56,12 @@ export default function AdminUsersPage() {
     return users;
   }, [users]);
 
-  const totalPages = Math.ceil(filteredUsers.length / pageSize);
-  const paginatedUsers = filteredUsers.slice((page - 1) * pageSize, page * pageSize);
+  const [activeTab, setActiveTab] = useState<"staff" | "citizens">("staff");
+  
+  const staffAndAdmins = useMemo(() => filteredUsers.filter((u: any) => ["staff", "admin", "super_admin"].includes(u.role)), [filteredUsers]);
+  const citizens = useMemo(() => filteredUsers.filter((u: any) => u.role === "citizen"), [filteredUsers]);
+  const activeUsers = activeTab === "staff" ? staffAndAdmins : citizens;
+  const totalPages = Math.ceil(activeUsers.length / pageSize);
 
   const { data: userRegions } = useQuery({
     queryKey: ["user-regions", regionsModal?.userId],
@@ -169,6 +173,35 @@ export default function AdminUsersPage() {
         <h2 className="text-2xl font-bold text-gray-800">Manage Users</h2>
       </div>
 
+      <div className="flex gap-2 border-b pb-2">
+        <button
+          onClick={() => {
+            setActiveTab("staff");
+            setPage(1);
+          }}
+          className={`px-4 py-2 font-medium transition-colors ${
+            activeTab === "staff" 
+              ? "text-indigo-600 border-b-2 border-indigo-600" 
+              : "text-gray-600 hover:text-gray-900"
+          }`}
+        >
+          Staff & Admins ({staffAndAdmins.length})
+        </button>
+        <button
+          onClick={() => {
+            setActiveTab("citizens");
+            setPage(1);
+          }}
+          className={`px-4 py-2 font-medium transition-colors ${
+            activeTab === "citizens" 
+              ? "text-indigo-600 border-b-2 border-indigo-600" 
+              : "text-gray-600 hover:text-gray-900"
+          }`}
+        >
+          Citizens ({citizens.length})
+        </button>
+      </div>
+
       <div className="rounded-2xl border bg-white p-5 shadow-lg space-y-4">
         <h3 className="text-lg font-semibold text-gray-800">Create New User</h3>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
@@ -255,14 +288,15 @@ export default function AdminUsersPage() {
                 <th className="text-left p-3 font-semibold text-gray-700">Role</th>
                 <th className="text-left p-3 font-semibold text-gray-700">Active</th>
                 <th className="text-left p-3 font-semibold text-gray-700">Verified</th>
-                <th className="text-left p-3 font-semibold text-gray-700">Regions</th>
+                {activeTab === "staff" && <th className="text-left p-3 font-semibold text-gray-700">Regions</th>}
                 <th className="text-left p-3 font-semibold text-gray-700">Created</th>
                 <th className="text-left p-3 font-semibold text-gray-700">Last Login</th>
                 <th className="text-left p-3 font-semibold text-gray-700">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {paginatedUsers.length > 0 ? paginatedUsers.map((u: any) => (
+              {(activeTab === "staff" ? staffAndAdmins : citizens).slice((page - 1) * pageSize, page * pageSize).length > 0 ? 
+                (activeTab === "staff" ? staffAndAdmins : citizens).slice((page - 1) * pageSize, page * pageSize).map((u: any) => (
                 <tr key={u.id} className="odd:bg-white even:bg-gray-50 hover:bg-indigo-50 transition-colors">
                   <td className="p-3 font-medium">{u.name || "—"}</td>
                   <td className="p-3">{u.email}</td>
@@ -313,18 +347,20 @@ export default function AdminUsersPage() {
                       {u.is_verified ? "Yes" : "No"}
                     </span>
                   </td>
-                  <td className="p-3">
-                    {["staff", "admin", "super_admin"].includes(u.role) ? (
-                      <button
-                        onClick={() => setRegionsModal({ userId: u.id, userName: u.name || u.email })}
-                        className="text-indigo-600 hover:text-indigo-800 text-xs font-medium hover:underline"
-                      >
-                        {userRegions?.length || 0} region{(userRegions?.length || 0) !== 1 ? "s" : ""}
-                      </button>
-                    ) : (
-                      <span className="text-gray-400">—</span>
-                    )}
-                  </td>
+                  {activeTab === "staff" && (
+                    <td className="p-3">
+                      {["staff", "admin", "super_admin"].includes(u.role) ? (
+                        <button
+                          onClick={() => setRegionsModal({ userId: u.id, userName: u.name || u.email })}
+                          className="text-indigo-600 hover:text-indigo-800 text-xs font-medium hover:underline"
+                        >
+                          {userRegions?.length || 0} region{(userRegions?.length || 0) !== 1 ? "s" : ""}
+                        </button>
+                      ) : (
+                        <span className="text-gray-400">—</span>
+                      )}
+                    </td>
+                  )}
                   <td className="p-3 text-xs text-gray-600">
                     {u.created_at ? new Date(u.created_at).toLocaleDateString() : "—"}
                   </td>
@@ -344,8 +380,8 @@ export default function AdminUsersPage() {
                 </tr>
               )) : (
                 <tr>
-                  <td colSpan={9} className="p-8 text-center text-gray-500">
-                    No users found. {search && "Try adjusting your filters."}
+                  <td colSpan={activeTab === "staff" ? 9 : 8} className="p-8 text-center text-gray-500">
+                    No {activeTab === "staff" ? "staff/admins" : "citizens"} found. {search && "Try adjusting your filters."}
                   </td>
                 </tr>
               )}
@@ -359,10 +395,10 @@ export default function AdminUsersPage() {
           currentPage={page}
           totalPages={totalPages}
           onPageChange={setPage}
-          totalItems={filteredUsers.length}
+          totalItems={activeUsers.length}
           itemsPerPage={pageSize}
           showingFrom={(page - 1) * pageSize + 1}
-          showingTo={Math.min(page * pageSize, filteredUsers.length)}
+          showingTo={Math.min(page * pageSize, activeUsers.length)}
         />
       )}
 

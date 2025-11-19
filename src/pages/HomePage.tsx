@@ -3,13 +3,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useLocation } from "react-router-dom";
 import { api } from "../services/apiClient";
-import { listIssues, updateIssueStatus } from "../services/issues.api";
+import { listIssues } from "../services/issues.api";
 import { useAuth } from "../store/useAuth";
 import { useReportModal } from "../store/useReportModal";
 import AuthModal from "../components/auth/AuthModal";
 import IssueDetailModal from "../components/report/IssueDetailModal";
-import type { Issue } from "../types/issue";
 import { useIssueTypes } from "../hooks/useIssueTypes";
 import { requireAuthAndOpenReport } from "../lib/requireAuthAndOpenReport";
 import RecentActivityRotator from "../components/dashboard/RecentActivityRotator";
@@ -19,6 +19,7 @@ import StatusPie from "../components/dashboard/StatusPie";
 import Pagination from "../components/ui/Pagination";
 import SearchableSelect from "../components/ui/SearchableSelect";
 import { getStatusColors } from "../constants/statusColors";
+import { CategoryIcon } from "../utils/categoryIcons";
 
 
 /** Toggle demo placeholders if backend is empty */
@@ -48,15 +49,43 @@ export default function HomePage() {
   const [mineOnly, setMineOnly] = useState(false);
   const [detailId, setDetailId] = useState<number | null>(null);
   const [authOpen, setAuthOpen] = useState(false);
+  const [authInitialView, setAuthInitialView] = useState<"login" | "register" | "forgot" | "verify">("login");
+  const [shouldOpenReportAfterAuth, setShouldOpenReportAfterAuth] = useState(false);
   const [sortBy, setSortBy] = useState<"date" | "title" | "status">("date");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [page, setPage] = useState(1);
   const pageSize = 12;
 
   const { user } = useAuth();
-  const isTeam = !!user && ["staff", "admin", "super_admin"].includes(user.role);
-
   const { openWith: openReportModal } = useReportModal();
+  
+  // Handle location state for showing login modal
+  const location = useLocation();
+  useEffect(() => {
+    if (location.state?.showLogin) {
+      setAuthOpen(true);
+      if (location.state?.initialView) {
+        setAuthInitialView(location.state.initialView);
+      }
+      if (location.state?.openReportAfterAuth) {
+        setShouldOpenReportAfterAuth(true);
+      }
+      // Clear the state to avoid reopening on refresh
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
+
+  useEffect(() => {
+    function onAuthSuccess(e: any) {
+      const shouldOpen = e?.detail?.openReport || shouldOpenReportAfterAuth;
+      if (shouldOpen) {
+        setShouldOpenReportAfterAuth(false);
+        setTimeout(() => openReportModal(), 100);
+      }
+    }
+    window.addEventListener("imc:auth-success", onAuthSuccess);
+    return () => window.removeEventListener("imc:auth-success", onAuthSuccess);
+  }, [shouldOpenReportAfterAuth, openReportModal]);
 
   // Stats (long refresh or none)
   useQuery({
@@ -210,11 +239,6 @@ export default function HomePage() {
   
   const totalPages = Math.ceil(totalIssues / pageSize);
 
-  // Actions
-  async function markStatus(id: number, newStatus: Issue["status"]) {
-    await updateIssueStatus(id, newStatus);
-    await refetchIssues();
-  }
 
   // Scroll to issues when a status filter is applied by clicking the pie
   useEffect(() => {
@@ -375,7 +399,7 @@ export default function HomePage() {
       </section>
 
       {/* FILTERS + RESULTS (connected card) */}
-      <section id="issues" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
+      <section id="issues" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
         <div className="rounded-2xl border bg-white overflow-hidden shadow-sm">
           <div className="p-4 border-b bg-gradient-to-r from-indigo-50 to-white">
             <h2 className="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
@@ -470,9 +494,12 @@ export default function HomePage() {
                     </span>
                   </div>
                   
-                  <div className="text-xs text-gray-600 mb-2">
-                    {it.category || "Uncategorized"}
-                  </div>
+                  {it.category && (
+                    <div className="flex items-center gap-1.5 mb-2 text-xs text-gray-600">
+                      <CategoryIcon category={it.category} className="w-3.5 h-3.5" />
+                      <span>{it.category}</span>
+                    </div>
+                  )}
                   
                   {titleIsTruncated ? (
                     <h3 
@@ -510,24 +537,6 @@ export default function HomePage() {
                     </div>
                   )}
                   
-                  {isTeam && !isResolved && (
-                    <div className="flex gap-2 mt-3" onClick={(e) => e.stopPropagation()}>
-                      <button 
-                        type="button" 
-                        onClick={() => markStatus(it.id, "in_progress")} 
-                        className="flex-1 px-3 py-2 rounded-xl border-2 border-yellow-300 bg-yellow-50 text-yellow-700 hover:bg-yellow-100 font-medium transition-colors text-sm"
-                      >
-                        Start
-                      </button>
-                      <button 
-                        type="button" 
-                        onClick={() => markStatus(it.id, "resolved")} 
-                        className="flex-1 px-3 py-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 font-medium transition-colors shadow-sm text-sm"
-                      >
-                        Resolve
-                      </button>
-                    </div>
-                  )}
                 </div>
               );
             })}
@@ -568,10 +577,10 @@ export default function HomePage() {
       <IssueDetailModal open={!!detailId} issueId={detailId} onClose={() => { setDetailId(null); refetchIssues(); }} />
       <AuthModal
         open={authOpen}
-        onClose={() => setAuthOpen(false)}
-        onAuthed={() => {
+        initialView={authInitialView}
+        onClose={() => {
           setAuthOpen(false);
-          openReportModal();
+          setShouldOpenReportAfterAuth(false);
         }}
       />
     </main>
