@@ -25,7 +25,30 @@ export interface Issue {
 }
 
 export async function listIssues(params: Record<string, any>) {
-  const { data } = await api.get("/issues", { params });
+  const queryParams: Record<string, any> = { ...params };
+  if (queryParams.dateRange && queryParams.dateRange !== "all_time") {
+    queryParams.date_range = queryParams.dateRange;
+    delete queryParams.dateRange;
+  }
+  if (queryParams.categoryId && queryParams.categoryId !== "all") {
+    queryParams.category = queryParams.categoryId;
+    delete queryParams.categoryId;
+  }
+  if (queryParams.regionId && queryParams.regionId !== "all") {
+    queryParams.state_code = queryParams.regionId;
+    delete queryParams.regionId;
+  }
+  if (queryParams.status && queryParams.status === "all") {
+    delete queryParams.status;
+  }
+  if (queryParams.myIssuesOnly !== undefined) {
+    queryParams.mine_only = queryParams.myIssuesOnly ? 1 : 0;
+    delete queryParams.myIssuesOnly;
+  }
+  if (queryParams.search) {
+    queryParams.search = queryParams.search;
+  }
+  const { data } = await api.get("/issues", { params: queryParams });
   return data;
 }
 
@@ -57,5 +80,20 @@ export async function listIssueComments(id: number) {
 
 export async function addIssueComment(id: number, payload: { body: string }) {
   const { data } = await api.post(`/issues/${id}/comments`, payload);
+  return data;
+}
+
+export async function getIssueActivity(id: number) {
+  const { data } = await api.get(`/issues/${id}/activity`);
+  return data;
+}
+
+export async function bulkIssueOperation(payload: { issue_ids: number[]; operation: string; user_id?: number | null; status?: string }) {
+  const { data } = await api.post("/issues/bulk", payload);
+  return data;
+}
+
+export async function getRelatedIssues(issueId: number) {
+  const { data } = await api.get(`/issues/${issueId}/related`);
   return data;
 }

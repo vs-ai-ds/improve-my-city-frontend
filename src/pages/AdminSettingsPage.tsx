@@ -38,6 +38,13 @@ export default function AdminSettingsPage() {
     admin_open_registration: false,
     email_from: "",
     email_from_name: "",
+    sla_hours: 48,
+    sla_reminder_hours: 24,
+    city_logo_url: "",
+    support_email: "",
+    website_url: "",
+    auto_email_on_status_change: true,
+    push_notifications_enabled: true,
     features: {
       allow_comments: true,
       show_top_contributors: true,
@@ -55,6 +62,13 @@ export default function AdminSettingsPage() {
         admin_open_registration: data.admin_open_registration || false,
         email_from: data.email_from || "",
         email_from_name: data.email_from_name || "",
+        sla_hours: data.sla_hours || 48,
+        sla_reminder_hours: data.sla_reminder_hours || 24,
+        city_logo_url: data.city_logo_url || "",
+        support_email: data.support_email || "",
+        website_url: data.website_url || "",
+        auto_email_on_status_change: data.auto_email_on_status_change !== false,
+        push_notifications_enabled: data.push_notifications_enabled !== false,
         features: data.features || {
           allow_comments: true,
           show_top_contributors: true,
@@ -206,6 +220,36 @@ export default function AdminSettingsPage() {
         <label className="flex items-center gap-3 cursor-pointer">
           <input
             type="checkbox"
+            checked={form.auto_email_on_status_change}
+            onChange={(e) => setForm({ ...form, auto_email_on_status_change: e.target.checked })}
+            disabled={!isSuperAdmin}
+            className="w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+          />
+          <div>
+            <div className="font-medium text-gray-900">Auto-email on status change</div>
+            <div className="text-sm text-gray-600">
+              Automatically send email notifications when issue status changes
+            </div>
+          </div>
+        </label>
+        <label className="flex items-center gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={form.push_notifications_enabled}
+            onChange={(e) => setForm({ ...form, push_notifications_enabled: e.target.checked })}
+            disabled={!isSuperAdmin}
+            className="w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+          />
+          <div>
+            <div className="font-medium text-gray-900">Enable push notifications</div>
+            <div className="text-sm text-gray-600">
+              Allow users to receive browser push notifications
+            </div>
+          </div>
+        </label>
+        <label className="flex items-center gap-3 cursor-pointer">
+          <input
+            type="checkbox"
             checked={form.features.enable_web_push_citizens || false}
             onChange={(e) => setForm({
               ...form,
@@ -239,6 +283,115 @@ export default function AdminSettingsPage() {
             </div>
           </div>
         </label>
+      </section>
+
+      {/* SLA Settings */}
+      <section className="space-y-4">
+        <h3 className="text-lg font-semibold text-gray-800 border-b pb-2">SLA Settings</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Default SLA (hours)
+            </label>
+            <Input
+              type="number"
+              value={form.sla_hours}
+              onChange={(e) => setForm({ ...form, sla_hours: parseInt(e.target.value) || 48 })}
+              placeholder="48"
+              disabled={!isSuperAdmin}
+              className="w-full"
+              min="1"
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              Default time to resolve issues (in hours)
+            </p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              SLA Reminder (hours before)
+            </label>
+            <Input
+              type="number"
+              value={form.sla_reminder_hours}
+              onChange={(e) => setForm({ ...form, sla_reminder_hours: parseInt(e.target.value) || 24 })}
+              placeholder="24"
+              disabled={!isSuperAdmin}
+              className="w-full"
+              min="1"
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              Send reminder X hours before SLA breach
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Branding */}
+      <section className="space-y-4">
+        <h3 className="text-lg font-semibold text-gray-800 border-b pb-2">Branding</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              City Logo URL
+            </label>
+            <Input
+              type="url"
+              value={form.city_logo_url}
+              onChange={(e) => setForm({ ...form, city_logo_url: e.target.value })}
+              placeholder="https://example.com/logo.png"
+              disabled={!isSuperAdmin}
+              className="w-full"
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              URL to your city logo image
+            </p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Support Email
+            </label>
+            <Input
+              type="email"
+              value={form.support_email}
+              onChange={(e) => setForm({ ...form, support_email: e.target.value })}
+              placeholder="support@example.com"
+              disabled={!isSuperAdmin}
+              className="w-full"
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              Support contact email for users
+            </p>
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Website URL
+            </label>
+            <Input
+              type="url"
+              value={form.website_url}
+              onChange={(e) => setForm({ ...form, website_url: e.target.value })}
+              placeholder="https://example.com"
+              disabled={!isSuperAdmin}
+              className="w-full"
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              Official city website URL
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Region Management */}
+      <section className="space-y-4">
+        <h3 className="text-lg font-semibold text-gray-800 border-b pb-2">Region Management</h3>
+        <p className="text-sm text-gray-600">
+          Region management is handled in the Users & Staff page. Assign regions to staff members to enable auto-assignment of issues.
+        </p>
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <p className="text-sm text-blue-800">
+            <strong>Note:</strong> To manage regions, go to Users & Staff page and click on a staff member's region count to assign/unassign regions.
+          </p>
+        </div>
       </section>
 
       {/* Feature Flags */}

@@ -1,38 +1,28 @@
 import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
 import type { RangeKey } from "../../services/stats.api";
-import { getByState } from "../../services/stats.api";
-import { api } from "../../services/apiClient";
+import type { IssueFilters } from "../../hooks/useIssueFilters";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend, LabelList } from "recharts";
 import { STATUS_COLORS } from "../../constants/statusColors";
 
 export default function RegionChart({ 
-  range, 
+  range,
+  filters,
+  byStateStatus,
   onRegionClick,
   selectedState,
   onClearFilter
 }: { 
   range: RangeKey;
+  filters?: Partial<Pick<IssueFilters, "status" | "categoryId" | "regionId" | "myIssuesOnly">>;
+  byStateStatus?: Array<{ state_code: string; pending: number; in_progress: number; resolved: number }>;
   onRegionClick?: (state: string) => void;
   selectedState?: string;
   onClearFilter?: () => void;
 }) {
-  const { data } = useQuery({
-    queryKey: ["stats-by-state", range],
-    queryFn: () => getByState(range),
-  });
-
-  const { data: stateStatusData } = useQuery({
-    queryKey: ["stats-by-state-status", range],
-    queryFn: async () => {
-      const { data } = await api.get("/issues/stats/by-state-status", { params: { range } });
-      return data as Array<{ state_code: string; pending: number; in_progress: number; resolved: number }>;
-    },
-  });
 
   const items = useMemo(() => {
-    if (stateStatusData && stateStatusData.length > 0) {
-      return stateStatusData.map((d: { state_code: string; pending: number; in_progress: number; resolved: number }) => ({
+    if (byStateStatus && byStateStatus.length > 0) {
+      return byStateStatus.map((d) => ({
         name: d.state_code,
         pending: d.pending || 0,
         in_progress: d.in_progress || 0,
@@ -40,15 +30,8 @@ export default function RegionChart({
         total: (d.pending || 0) + (d.in_progress || 0) + (d.resolved || 0),
       }));
     }
-    return (data ?? []).map((d: { state_code?: string; state?: string; count?: number }) => ({ 
-      name: d.state_code ?? d.state ?? "—", 
-      count: d.count ?? 0,
-      pending: 0,
-      in_progress: 0,
-      resolved: 0,
-      total: d.count ?? 0,
-    }));
-  }, [data, stateStatusData]);
+    return [];
+  }, [byStateStatus]);
 
   const [scrollIndex, setScrollIndex] = useState(0);
   const itemsPerPage = 5;
@@ -58,14 +41,6 @@ export default function RegionChart({
     return items.slice(scrollIndex, scrollIndex + itemsPerPage);
   }, [items, scrollIndex]);
 
-  if (!items.length) {
-    return (
-      <div className="rounded-2xl bg-gradient-to-br from-white to-gray-50 p-6 shadow-lg ring-1 ring-gray-200 text-center">
-        <h3 className="text-lg font-bold text-gray-800 mb-2">Issues by Region</h3>
-        <p className="text-sm text-gray-500">No issues yet — you'll see a breakdown by region here.</p>
-      </div>
-    );
-  }
 
   return (
     <div className="rounded-2xl bg-gradient-to-br from-white to-gray-50 p-6 shadow-lg ring-1 ring-gray-200">
@@ -112,13 +87,18 @@ export default function RegionChart({
         </div>
       </div>
 
-      <div className="h-[400px] sm:h-[550px] md:h-[650px] w-full">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart 
-            data={visibleItems} 
-            margin={{ top: 20, right: 10, left: 40, bottom: 0 }}
-            barCategoryGap="15%"
-          >
+      {items.length === 0 ? (
+        <div className="h-[400px] sm:h-[550px] md:h-[650px] w-full flex items-center justify-center">
+          <p className="text-sm text-gray-500">No issues yet — you'll see a breakdown by region here.</p>
+        </div>
+      ) : (
+        <div className="h-[400px] sm:h-[550px] md:h-[650px] w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart 
+              data={visibleItems} 
+              margin={{ top: 20, right: 10, left: 40, bottom: 0 }}
+              barCategoryGap="15%"
+            >
             <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" opacity={0.3} />
             <XAxis 
               dataKey="name" 
@@ -148,7 +128,7 @@ export default function RegionChart({
                 name === "total" ? "Total" : name.replace("_", " ").replace(/\b\w/g, (l: string) => l.toUpperCase())
               ]}
             />
-            {stateStatusData && stateStatusData.length > 0 ? (
+            {byStateStatus && byStateStatus.length > 0 ? (
               <>
                 <Bar 
                   dataKey="pending" 
@@ -249,6 +229,7 @@ export default function RegionChart({
           </BarChart>
         </ResponsiveContainer>
       </div>
+      )}
     </div>
   );
 }

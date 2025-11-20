@@ -10,9 +10,11 @@ const capitalize = (str: string) => {
 export default function StatusPie({
   data,
   onPick,
+  selectedStatus,
 }: {
   data: { name: string; value: number }[];
   onPick: (status: string) => void;
+  selectedStatus?: string;
 }) {
   
   const total = data.reduce((sum, d) => sum + d.value, 0);
@@ -78,9 +80,19 @@ export default function StatusPie({
               label={renderCustomLabel}
               labelLine={false}
             >
-              {data.map((entry, i) => (
-                <Cell key={i} fill={STATUS_COLORS[entry.name as keyof typeof STATUS_COLORS].chart} />
-              ))}
+              {data.map((entry, i) => {
+                const isSelected = selectedStatus && selectedStatus !== "all" && entry.name === selectedStatus;
+                const baseColor = STATUS_COLORS[entry.name as keyof typeof STATUS_COLORS].chart;
+                return (
+                  <Cell 
+                    key={i} 
+                    fill={isSelected ? baseColor : baseColor}
+                    opacity={isSelected ? 1 : selectedStatus && selectedStatus !== "all" ? 0.4 : 1}
+                    stroke={isSelected ? "#1e40af" : "none"}
+                    strokeWidth={isSelected ? 3 : 0}
+                  />
+                );
+              })}
             </Pie>
             <Tooltip content={<CustomTooltip />} />
           </PieChart>

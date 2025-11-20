@@ -24,3 +24,18 @@ export async function deleteUser(id: number) {
   const { data } = await api.delete(`/admin/users/${id}`);
   return data;
 }
+
+export async function triggerPasswordReset(userId: number) {
+  const { data } = await api.post(`/admin/users/${userId}/reset-password`);
+  return data;
+}
+
+export async function getUserStats(userId: number) {
+  const { data } = await api.get(`/admin/users/${userId}/stats`);
+  return data;
+}
+
+export async function bulkUserOperation(payload: { user_ids: number[]; operation: string }) {
+  const { data } = await api.post("/admin/users/bulk", payload);
+  return data;
+}

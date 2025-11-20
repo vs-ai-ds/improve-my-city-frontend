@@ -6,7 +6,7 @@ export function loadGoogleMaps() {
   const key = import.meta.env.VITE_MAPS_API_KEY;
   loading = new Promise((resolve, reject) => {
     const s = document.createElement("script");
-    s.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=places`;
+    s.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=places,visualization`;
     s.async = true; s.defer = true;
     s.onload = () => resolve();
     s.onerror = () => reject(new Error("Failed to load Google Maps"));

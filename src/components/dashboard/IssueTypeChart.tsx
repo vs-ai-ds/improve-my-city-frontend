@@ -1,38 +1,28 @@
 import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
 import type { RangeKey } from "../../services/stats.api";
-import { getByType } from "../../services/stats.api";
-import { api } from "../../services/apiClient";
+import type { IssueFilters } from "../../hooks/useIssueFilters";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend, LabelList } from "recharts";
 import { STATUS_COLORS } from "../../constants/statusColors";
 
 export default function IssueTypeChart({ 
-  range, 
+  range,
+  filters,
+  byTypeStatus,
   onTypeClick,
   selectedCategory,
   onClearFilter
 }: { 
   range: RangeKey;
+  filters?: Partial<Pick<IssueFilters, "status" | "categoryId" | "regionId" | "myIssuesOnly">>;
+  byTypeStatus?: Array<{ type: string; pending: number; in_progress: number; resolved: number }>;
   onTypeClick?: (type: string) => void;
   selectedCategory?: string;
   onClearFilter?: () => void;
 }) {
-  const { data } = useQuery({
-    queryKey: ["stats-by-type", range],
-    queryFn: () => getByType(range),
-  });
-
-  const { data: typeStatusData } = useQuery({
-    queryKey: ["stats-by-type-status", range],
-    queryFn: async () => {
-      const { data } = await api.get("/issues/stats/by-type-status", { params: { range } });
-      return data as Array<{ type: string; pending: number; in_progress: number; resolved: number }>;
-    },
-  });
 
   const items = useMemo(() => {
-    if (typeStatusData && typeStatusData.length > 0) {
-      return typeStatusData.map((d: { type: string; pending: number; in_progress: number; resolved: number }) => ({
+    if (byTypeStatus && byTypeStatus.length > 0) {
+      return byTypeStatus.map((d) => ({
         name: d.type,
         pending: d.pending || 0,
         in_progress: d.in_progress || 0,
@@ -40,15 +30,8 @@ export default function IssueTypeChart({
         total: (d.pending || 0) + (d.in_progress || 0) + (d.resolved || 0),
       }));
     }
-    return (data ?? []).map((d: { type: string; count: number }) => ({ 
-      name: d.type, 
-      count: d.count,
-      pending: 0,
-      in_progress: 0,
-      resolved: 0,
-      total: d.count,
-    }));
-  }, [data, typeStatusData]);
+    return [];
+  }, [byTypeStatus]);
   const [scrollIndex, setScrollIndex] = useState(0);
   const itemsPerPage = 5;
   const maxScroll = Math.max(0, items.length - itemsPerPage);
@@ -148,7 +131,7 @@ export default function IssueTypeChart({
                 name === "total" ? "Total" : name.replace("_", " ").replace(/\b\w/g, (l: string) => l.toUpperCase())
               ]}
             />
-            {typeStatusData && typeStatusData.length > 0 ? (
+            {byTypeStatus && byTypeStatus.length > 0 ? (
               <>
                 <Bar 
                   dataKey="pending" 

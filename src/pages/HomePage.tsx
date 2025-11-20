@@ -6,8 +6,10 @@ import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "react-router-dom";
 import { api } from "../services/apiClient";
 import { listIssues } from "../services/issues.api";
+import { getByType, getByTypeStatus, getByState, getByStateStatus } from "../services/stats.api";
 import { useAuth } from "../store/useAuth";
 import { useReportModal } from "../store/useReportModal";
+import { useIssueFilters, type IssueStatusFilter } from "../hooks/useIssueFilters";
 import AuthModal from "../components/auth/AuthModal";
 import IssueDetailModal from "../components/report/IssueDetailModal";
 import { useIssueTypes } from "../hooks/useIssueTypes";
@@ -21,15 +23,11 @@ import SearchableSelect from "../components/ui/SearchableSelect";
 import { getStatusColors } from "../constants/statusColors";
 import { CategoryIcon } from "../utils/categoryIcons";
 
-
-/** Toggle demo placeholders if backend is empty */
 const USE_DEMO = false;
 
-/** Time ranges shared by insights */
 type RangeKey = "today" | "7d" | "15d" | "30d" | "all";
 const RANGES: RangeKey[] = ["today", "7d", "15d", "30d", "all"];
 
-/** Pretty duration like "2d 4h" */
 function prettyDuration(sec?: number) {
   if (!sec || sec < 0) return "—";
   const d = Math.floor(sec / 86400);
@@ -38,28 +36,28 @@ function prettyDuration(sec?: number) {
   return [d ? `${d}d` : null, h ? `${h}h` : null, m ? `${m}m` : null].filter(Boolean).join(" ") || "0m";
 }
 
-
 export default function HomePage() {
-  // Filters / UI state
-  const [range, setRange] = useState<RangeKey>("30d");
-  const [search, setSearch] = useState("");
-  const [status, setStatus] = useState("");
-  const [category, setCategory] = useState("");
-  const [stateCode, setStateCode] = useState("");
-  const [mineOnly, setMineOnly] = useState(false);
+  const {
+    filters,
+    updateFilter,
+    setStatus,
+    setCategoryId,
+    setRegionId,
+    clearAllFilters,
+    clearFilter,
+    convertDateRangeToRangeKey,
+  } = useIssueFilters();
+
   const [detailId, setDetailId] = useState<number | null>(null);
   const [authOpen, setAuthOpen] = useState(false);
   const [authInitialView, setAuthInitialView] = useState<"login" | "register" | "forgot" | "verify">("login");
   const [shouldOpenReportAfterAuth, setShouldOpenReportAfterAuth] = useState(false);
   const [sortBy, setSortBy] = useState<"date" | "title" | "status">("date");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
-  const [page, setPage] = useState(1);
-  const pageSize = 12;
 
   const { user } = useAuth();
   const { openWith: openReportModal } = useReportModal();
   
-  // Handle location state for showing login modal
   const location = useLocation();
   useEffect(() => {
     if (location.state?.showLogin) {
@@ -70,7 +68,6 @@ export default function HomePage() {
       if (location.state?.openReportAfterAuth) {
         setShouldOpenReportAfterAuth(true);
       }
-      // Clear the state to avoid reopening on refresh
       window.history.replaceState({}, document.title);
     }
   }, [location.state]);
@@ -87,15 +84,14 @@ export default function HomePage() {
     return () => window.removeEventListener("imc:auth-success", onAuthSuccess);
   }, [shouldOpenReportAfterAuth, openReportModal]);
 
-  // Stats (long refresh or none)
-  useQuery({
-    queryKey: ["stats:summary", range],
-    queryFn: async () => (await api.get("/issues/stats/summary", { params: { range } })).data,
-    refetchInterval: 1800000, // 30m
-    refetchOnWindowFocus: false,
-  });
+  const rangeKey = convertDateRangeToRangeKey(filters.dateRange);
+  const chartFilters = useMemo(() => ({
+    status: filters.status !== "all" ? filters.status : undefined,
+    categoryId: filters.categoryId !== "all" ? filters.categoryId : undefined,
+    regionId: filters.regionId !== "all" ? filters.regionId : undefined,
+    myIssuesOnly: filters.myIssuesOnly,
+  }), [filters.status, filters.categoryId, filters.regionId, filters.myIssuesOnly]);
 
-  // Status breakdown for all time (for pie chart widget)
   const { data: summaryAllTime } = useQuery({
     queryKey: ["stats:summary", "all"],
     queryFn: async () => (await api.get("/issues/stats/summary", { params: { range: "all" } })).data,
@@ -104,26 +100,39 @@ export default function HomePage() {
   });
 
   const { data: byType } = useQuery({
-    queryKey: ["stats:by-type", range],
-    queryFn: async () => (await api.get("/issues/stats/by-type", { params: { range } })).data as { type: string; count: number }[],
+    queryKey: ["stats:by-type", rangeKey, chartFilters],
+    queryFn: () => getByType(rangeKey, chartFilters, user?.id),
+    refetchInterval: 1800000,
+    refetchOnWindowFocus: false,
+  });
+
+  const { data: byTypeStatus } = useQuery({
+    queryKey: ["stats:by-type-status", rangeKey, chartFilters],
+    queryFn: () => getByTypeStatus(rangeKey, chartFilters, user?.id),
     refetchInterval: 1800000,
     refetchOnWindowFocus: false,
   });
 
   const { data: byState } = useQuery({
-    queryKey: ["stats:by-state", range],
-    queryFn: async () => (await api.get("/issues/stats/by-state", { params: { range } })).data as { state_code: string; count: number }[],
+    queryKey: ["stats:by-state", rangeKey, chartFilters],
+    queryFn: () => getByState(rangeKey, chartFilters, user?.id),
     refetchInterval: 1800000,
     refetchOnWindowFocus: false,
   });
 
-  // Extras
+  const { data: byStateStatus } = useQuery({
+    queryKey: ["stats:by-state-status", rangeKey, chartFilters],
+    queryFn: () => getByStateStatus(rangeKey, chartFilters, user?.id),
+    refetchInterval: 1800000,
+    refetchOnWindowFocus: false,
+  });
+
   const { data: types } = useIssueTypes();
 
   const { data: topContrib } = useQuery({
     queryKey: ["stats:top-contributors"],
     queryFn: async () => (await api.get("/issues/stats/top-contributors", { params: { limit: 10 } })).data as { name: string; count: number }[],
-    refetchInterval: 15 * 60 * 1000, // 15 minutes
+    refetchInterval: 15 * 60 * 1000,
     staleTime: 15 * 60 * 1000,
     refetchOnWindowFocus: false,
   });
@@ -135,22 +144,17 @@ export default function HomePage() {
     refetchOnWindowFocus: false,
   });
 
-
-  // Issues list (no auto refresh)
   const {
     data: issuesData,
     isFetching: fetchingIssues,
     refetch: refetchIssues,
   } = useQuery({
-    queryKey: ["issues", { search, status, category, stateCode, mineOnly, page }],
+    queryKey: ["issues", filters],
     queryFn: async () => {
       const data = await listIssues({
-        status: status || undefined,
-        category: category || undefined,
-        state_code: stateCode || undefined,
-        mine_only: mineOnly ? 1 : 0,
-        limit: pageSize,
-        offset: (page - 1) * pageSize,
+        ...filters,
+        limit: filters.pageSize,
+        offset: (filters.page - 1) * filters.pageSize,
       });
       return data;
     },
@@ -169,7 +173,6 @@ export default function HomePage() {
     return issuesData.total || issues.length;
   }, [issuesData, issues.length]);
 
-  // Derived
   const typeOptions = useMemo(
     () => (Array.isArray(types) ? types.map((t: any) => t.name).filter(Boolean) : [] as string[]),
     [types]
@@ -191,15 +194,6 @@ export default function HomePage() {
     }
     return data;
   }, [summaryAllTime]);
-
-  useMemo(() => {
-    if (Array.isArray(byType) && byType.length > 0) {
-      return byType.map((t) => ({ name: t.type, count: t.count }));
-    }
-    return USE_DEMO
-      ? [{ name: "Road", count: 8 }, { name: "Water", count: 5 }, { name: "Electric", count: 3 }]
-      : [];
-  }, [byType]);
 
   const regionBarData = useMemo(() => {
     if (Array.isArray(byState) && byState.length > 0) {
@@ -236,24 +230,47 @@ export default function HomePage() {
     return sorted;
   }, [issues, sortBy, sortOrder]);
 
-  
-  const totalPages = Math.ceil(totalIssues / pageSize);
+  const totalPages = Math.ceil(totalIssues / filters.pageSize);
 
+  const activeFilters = useMemo(() => {
+    const active: Array<{ key: keyof typeof filters; label: string; value: string }> = [];
+    if (filters.status !== "all") {
+      active.push({ key: "status", label: "Status", value: filters.status });
+    }
+    if (filters.categoryId !== "all") {
+      active.push({ key: "categoryId", label: "Category", value: filters.categoryId });
+    }
+    if (filters.regionId !== "all") {
+      active.push({ key: "regionId", label: "Region", value: filters.regionId });
+    }
+    if (filters.dateRange !== "30d") {
+      const rangeLabels: Record<string, string> = { "7d": "Last 7 days", "30d": "Last 30 days", "90d": "Last 90 days", "all_time": "All time" };
+      active.push({ key: "dateRange", label: "Date Range", value: rangeLabels[filters.dateRange] || filters.dateRange });
+    }
+    if (filters.myIssuesOnly) {
+      active.push({ key: "myIssuesOnly", label: "My Issues", value: "Yes" });
+    }
+    if (filters.search) {
+      active.push({ key: "search", label: "Search", value: filters.search });
+    }
+    return active;
+  }, [filters]);
 
-  // Scroll to issues when a status filter is applied by clicking the pie
   useEffect(() => {
-    if (status) {
+    if (filters.status !== "all") {
       document.querySelector("#issues")?.scrollIntoView({ behavior: "smooth", block: "start" });
     }
-  }, [status]);
+  }, [filters.status]);
+
+  const handlePieClick = (pickedStatus: string) => {
+    setStatus(pickedStatus as IssueStatusFilter);
+  };
 
   return (
     <main className="pb-14">
-      {/* HERO + Contributors / Extras */}
       <section className="relative bg-gradient-to-br from-indigo-50 to-teal-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
           <div className="grid gap-6 md:grid-cols-2">
-            {/* Left: text + CTA + extras */}
             <div className="flex flex-col">
               <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-gray-900">Improve My City</h1>
               <p className="mt-2 text-gray-700">
@@ -268,7 +285,6 @@ export default function HomePage() {
                 </button>
               </div>
 
-              {/* Extras: Avg resolve + Top contributors side by side */}
               <div className="mt-6 grid grid-cols-2 gap-3 items-stretch">
                 <div className="rounded-2xl bg-gradient-to-br from-indigo-50 to-purple-50 p-4 shadow-lg ring-1 ring-indigo-200 flex flex-col" style={{ minHeight: 'calc(2 * (48px + 8px) + 60px)' }}>
                   <div className="flex items-center justify-between w-full mb-3">
@@ -312,7 +328,6 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* Right: Status Breakdown + Recent Activity side by side */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-stretch">
               <div className="rounded-2xl bg-gradient-to-br from-white to-gray-50 p-3 sm:p-4 shadow-lg ring-1 ring-gray-200 flex flex-col">
                 <div className="flex items-center justify-between mb-3">
@@ -324,13 +339,17 @@ export default function HomePage() {
                 </div>
                 {pieData.length ? (
                   <div className="flex flex-col">
-                    <StatusPie data={pieData} onPick={(picked) => { setStatus(picked); setPage(1); }} />
-                    {status && (
+                    <StatusPie 
+                      data={pieData} 
+                      onPick={handlePieClick}
+                      selectedStatus={filters.status}
+                    />
+                    {filters.status !== "all" && (
                       <button 
                         className="mt-2 w-full px-4 py-2 rounded-lg bg-indigo-100 hover:bg-indigo-200 text-indigo-700 text-sm font-semibold transition-colors shadow-sm border border-indigo-200" 
-                        onClick={() => setStatus("")}
+                        onClick={() => setStatus("all")}
                       >
-                        ✕ Clear Filter
+                        ✕ Clear Status Filter
                       </button>
                     )}
                   </div>
@@ -355,7 +374,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* INSIGHTS */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
         <div className="rounded-2xl border bg-white p-4 md:p-5 shadow-sm">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -363,42 +381,75 @@ export default function HomePage() {
             <label className="inline-flex items-center gap-2 text-sm">
               <span className="text-gray-600">Range</span>
               <select
-                value={range}
-                onChange={(e) => setRange(e.target.value as RangeKey)}
+                value={filters.dateRange}
+                onChange={(e) => updateFilter("dateRange", e.target.value as any)}
                 className="cursor-pointer rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 capitalize"
               >
-                {RANGES.map((r) => (
-                  <option key={r} value={r}>
-                    {r === "7d" ? "Last 7 Days" : r === "15d" ? "Last 15 Days" : r === "30d" ? "Last 30 Days" : r === "today" ? "Today" : "All Time"}
-                  </option>
-                ))}
+                <option value="7d">Last 7 Days</option>
+                <option value="30d">Last 30 Days</option>
+                <option value="90d">Last 90 Days</option>
+                <option value="all_time">All Time</option>
               </select>
             </label>
           </div>
 
-          {/* Row 1: Issue Type Chart (full width) */}
+          {activeFilters.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {activeFilters.map((filter) => (
+                <button
+                  key={filter.key}
+                  onClick={() => {
+                    if (filter.key === "dateRange") {
+                      updateFilter("dateRange", "30d");
+                    } else if (filter.key === "myIssuesOnly") {
+                      updateFilter("myIssuesOnly", false);
+                    } else if (filter.key === "search") {
+                      updateFilter("search", "");
+                    } else {
+                      clearFilter(filter.key);
+                    }
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-100 hover:bg-indigo-200 text-indigo-700 text-xs font-medium transition-colors"
+                >
+                  <span>{filter.label}: {filter.value}</span>
+                  <span className="text-indigo-500">×</span>
+                </button>
+              ))}
+              {activeFilters.length > 1 && (
+                <button
+                  onClick={clearAllFilters}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-medium transition-colors"
+                >
+                  Clear all
+                </button>
+              )}
+            </div>
+          )}
+
           <div className="mt-4 overflow-x-auto">
             <IssueTypeChart 
-              range={range} 
-              onTypeClick={(type) => { setCategory(type); setPage(1); }}
-              selectedCategory={category}
-              onClearFilter={() => { setCategory(""); setPage(1); }}
+              range={rangeKey}
+              filters={chartFilters}
+              byTypeStatus={byTypeStatus}
+              onTypeClick={(type) => setCategoryId(type)}
+              selectedCategory={filters.categoryId !== "all" ? filters.categoryId : undefined}
+              onClearFilter={() => setCategoryId("all")}
             />
           </div>
 
-          {/* Row 2: Region bar (full width) */}
           <div className="mt-4 overflow-x-auto">
             <RegionChart 
-              range={range} 
-              onRegionClick={(state) => { setStateCode(state); setPage(1); }}
-              selectedState={stateCode}
-              onClearFilter={() => { setStateCode(""); setPage(1); }}
+              range={rangeKey}
+              filters={chartFilters}
+              byStateStatus={byStateStatus}
+              onRegionClick={(state) => setRegionId(state)}
+              selectedState={filters.regionId !== "all" ? filters.regionId : undefined}
+              onClearFilter={() => setRegionId("all")}
             />
           </div>
         </div>
       </section>
 
-      {/* FILTERS + RESULTS (connected card) */}
       <section id="issues" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
         <div className="rounded-2xl border bg-white overflow-hidden shadow-sm">
           <div className="p-4 border-b bg-gradient-to-r from-indigo-50 to-white">
@@ -408,38 +459,43 @@ export default function HomePage() {
             </h2>
             <div className="grid md:grid-cols-5 gap-3">
               <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                value={filters.search}
+                onChange={(e) => updateFilter("search", e.target.value)}
                 placeholder="Search issues by title, description..."
                 className="rounded-xl border-2 border-gray-200 px-4 py-2.5 md:col-span-2 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-colors shadow-sm"
               />
               <select
-                value={status}
-                onChange={(e) => setStatus(e.target.value)}
+                value={filters.status}
+                onChange={(e) => setStatus(e.target.value as IssueStatusFilter)}
                 className="cursor-pointer rounded-xl border-2 border-gray-200 px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-colors shadow-sm bg-white"
               >
-                <option value="">All statuses</option>
+                <option value="all">All statuses</option>
                 <option value="pending">Pending</option>
                 <option value="in_progress">In progress</option>
                 <option value="resolved">Resolved</option>
               </select>
               <SearchableSelect
-                value={category}
-                onChange={(value) => { setCategory(value); setPage(1); }}
+                value={filters.categoryId !== "all" ? filters.categoryId : ""}
+                onChange={(value) => setCategoryId(value || "all")}
                 options={typeOptions}
                 placeholder="All categories"
                 className="md:col-span-1"
               />
               <SearchableSelect
-                value={stateCode}
-                onChange={(value) => { setStateCode(value); setPage(1); }}
+                value={filters.regionId !== "all" ? filters.regionId : ""}
+                onChange={(value) => setRegionId(value || "all")}
                 options={Array.from(new Set(regionBarData.map(r => r.name)))}
                 placeholder="All states"
                 className="md:col-span-1"
               />
             {user && (
               <label className="flex items-center gap-2 text-sm cursor-pointer px-4 py-2.5 rounded-xl border-2 border-gray-200 hover:border-indigo-300 transition-colors bg-white shadow-sm">
-                <input type="checkbox" checked={mineOnly} onChange={(e) => { setMineOnly(e.target.checked); setPage(1); }} className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                <input 
+                  type="checkbox" 
+                  checked={filters.myIssuesOnly} 
+                  onChange={(e) => updateFilter("myIssuesOnly", e.target.checked)} 
+                  className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" 
+                />
                 <span className="font-medium text-gray-700">My issues</span>
               </label>
             )}
@@ -536,7 +592,6 @@ export default function HomePage() {
                       Resolved: {new Date(it.resolved_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                     </div>
                   )}
-                  
                 </div>
               );
             })}
@@ -544,13 +599,13 @@ export default function HomePage() {
 
           {totalIssues > 0 && (
             <Pagination
-              currentPage={page}
+              currentPage={filters.page}
               totalPages={totalPages}
-              onPageChange={setPage}
+              onPageChange={(page) => updateFilter("page", page)}
               totalItems={totalIssues}
-              itemsPerPage={pageSize}
-              showingFrom={((page - 1) * pageSize) + 1}
-              showingTo={Math.min(page * pageSize, totalIssues)}
+              itemsPerPage={filters.pageSize}
+              showingFrom={((filters.page - 1) * filters.pageSize) + 1}
+              showingTo={Math.min(filters.page * filters.pageSize, totalIssues)}
             />
           )}
 
@@ -573,7 +628,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Modals */}
       <IssueDetailModal open={!!detailId} issueId={detailId} onClose={() => { setDetailId(null); refetchIssues(); }} />
       <AuthModal
         open={authOpen}

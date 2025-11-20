@@ -58,6 +58,24 @@ declare namespace google {
         lng(): number;
       };
     }
+
+    namespace visualization {
+      class HeatmapLayer {
+        constructor(options: {
+          data: Array<{ location: LatLng; weight?: number }>;
+          map: Map;
+          radius?: number;
+          opacity?: number;
+        });
+        setMap(map: Map | null): void;
+      }
+    }
+
+    class LatLng {
+      constructor(lat: number, lng: number);
+      lat(): number;
+      lng(): number;
+    }
   }
 }
 

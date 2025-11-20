@@ -2,7 +2,8 @@ import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Input from "../../components/ui/Input";
 import Button from "../../components/ui/Button";
-import { listUsers, createUser, updateUser, deleteUser } from "../../services/admin.users.api";
+import { listUsers, createUser, updateUser, deleteUser, triggerPasswordReset, getUserStats, bulkUserOperation } from "../../services/admin.users.api";
+import { exportToCSV } from "../../utils/issueUtils";
 import { api } from "../../services/apiClient";
 import { useAuth } from "../../store/useAuth";
 import { useToast } from "../../components/toast/ToastProvider";
@@ -27,6 +28,10 @@ export default function AdminUsersPage() {
   const [role, setRole] = useState("citizen");
   const [regionsModal, setRegionsModal] = useState<{ userId: number; userName: string } | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: number; name: string } | null>(null);
+  const [profileModalId, setProfileModalId] = useState<number | null>(null);
+  const [selectedUsers, setSelectedUsers] = useState<Set<number>>(new Set());
+  const [sortBy, setSortBy] = useState<"created_at" | "last_login" | "name" | "email">("created_at");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
   const { data: usersData, isLoading } = useQuery({
     queryKey: ["admin-users", search, roleFilter, statusFilter, verifiedFilter],
@@ -53,8 +58,36 @@ export default function AdminUsersPage() {
   }, [usersData]);
 
   const filteredUsers = useMemo(() => {
-    return users;
-  }, [users]);
+    let filtered = [...users];
+    
+    if (sortBy === "created_at") {
+      filtered.sort((a: any, b: any) => {
+        const aVal = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const bVal = b.created_at ? new Date(b.created_at).getTime() : 0;
+        return sortOrder === "asc" ? aVal - bVal : bVal - aVal;
+      });
+    } else if (sortBy === "last_login") {
+      filtered.sort((a: any, b: any) => {
+        const aVal = a.last_login ? new Date(a.last_login).getTime() : 0;
+        const bVal = b.last_login ? new Date(b.last_login).getTime() : 0;
+        return sortOrder === "asc" ? aVal - bVal : bVal - aVal;
+      });
+    } else if (sortBy === "name") {
+      filtered.sort((a: any, b: any) => {
+        const aVal = (a.name || "").toLowerCase();
+        const bVal = (b.name || "").toLowerCase();
+        return sortOrder === "asc" ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+      });
+    } else if (sortBy === "email") {
+      filtered.sort((a: any, b: any) => {
+        const aVal = (a.email || "").toLowerCase();
+        const bVal = (b.email || "").toLowerCase();
+        return sortOrder === "asc" ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+      });
+    }
+    
+    return filtered;
+  }, [users, sortBy, sortOrder]);
 
   const [activeTab, setActiveTab] = useState<"staff" | "citizens">("staff");
   
@@ -71,6 +104,12 @@ export default function AdminUsersPage() {
       return data || [];
     },
     enabled: !!regionsModal,
+  });
+
+  const { data: userStats } = useQuery({
+    queryKey: ["user-stats", profileModalId],
+    queryFn: () => getUserStats(profileModalId!),
+    enabled: !!profileModalId,
   });
 
   const mutCreate = useMutation({
@@ -150,6 +189,67 @@ export default function AdminUsersPage() {
       return u.role !== "super_admin";
     }
     return false;
+  };
+
+  const toggleUserSelection = (userId: number) => {
+    setSelectedUsers(prev => {
+      const next = new Set(prev);
+      if (next.has(userId)) {
+        next.delete(userId);
+      } else {
+        next.add(userId);
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    const currentList = activeTab === "staff" ? staffAndAdmins : citizens;
+    if (selectedUsers.size === currentList.length) {
+      setSelectedUsers(new Set());
+    } else {
+      setSelectedUsers(new Set(currentList.map((u: any) => u.id)));
+    }
+  };
+
+  const handleBulkAction = async (operation: string) => {
+    if (selectedUsers.size === 0) {
+      toast.show("Please select at least one user");
+      return;
+    }
+    try {
+      const result = await bulkUserOperation({ user_ids: Array.from(selectedUsers), operation });
+      toast.show(`Bulk operation completed: ${result.updated_count} user(s) updated`);
+      setSelectedUsers(new Set());
+      qc.invalidateQueries({ queryKey: ["admin-users"] });
+    } catch (e: any) {
+      toast.show(e?.response?.data?.detail || "Bulk operation failed");
+    }
+  };
+
+  const handlePasswordReset = async (userId: number) => {
+    try {
+      await triggerPasswordReset(userId);
+      toast.show("Password reset email sent");
+    } catch (e: any) {
+      toast.show(e?.response?.data?.detail || "Failed to send reset email");
+    }
+  };
+
+  const handleExportCSV = () => {
+    const dataToExport = (activeTab === "staff" ? staffAndAdmins : citizens).map((u: any) => ({
+      id: u.id,
+      name: u.name || "",
+      email: u.email,
+      role: u.role,
+      is_active: u.is_active ? "Yes" : "No",
+      is_verified: u.is_verified ? "Yes" : "No",
+      mobile: u.mobile || "",
+      created_at: u.created_at || "",
+      last_login: u.last_login || "Never"
+    }));
+    exportToCSV(dataToExport, `${activeTab}-users-export-${new Date().toISOString().split('T')[0]}.csv`);
+    toast.show("Export started");
   };
 
   const roleBadges: Record<string, string> = {
@@ -276,13 +376,88 @@ export default function AdminUsersPage() {
             <option value="unverified">Unverified</option>
           </select>
         </div>
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-gray-700">Sort by:</span>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as any)}
+              className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            >
+              <option value="created_at">Created Date</option>
+              <option value="last_login">Last Login</option>
+              <option value="name">Name</option>
+              <option value="email">Email</option>
+            </select>
+            <button
+              onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
+              className="px-3 py-1.5 rounded-lg border border-gray-300 bg-white hover:bg-gray-50 text-sm"
+            >
+              {sortOrder === "asc" ? "↑" : "↓"}
+            </button>
+          </div>
+          <button
+            onClick={handleExportCSV}
+            className="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700"
+          >
+            Export CSV
+          </button>
+        </div>
       </div>
+
+      {selectedUsers.size > 0 && (
+        <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 flex items-center justify-between">
+          <div className="text-sm font-medium text-indigo-900">
+            {selectedUsers.size} user{selectedUsers.size !== 1 ? "s" : ""} selected
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => handleBulkAction("activate")}
+              className="px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700"
+            >
+              Activate
+            </button>
+            <button
+              onClick={() => handleBulkAction("deactivate")}
+              className="px-3 py-1.5 rounded-lg bg-gray-600 text-white text-sm font-medium hover:bg-gray-700"
+            >
+              Deactivate
+            </button>
+            {activeTab === "citizens" && (
+              <button
+                onClick={() => {
+                  if (confirm(`Are you sure you want to delete ${selectedUsers.size} user(s)?`)) {
+                    handleBulkAction("delete");
+                  }
+                }}
+                className="px-3 py-1.5 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700"
+              >
+                Delete
+              </button>
+            )}
+            <button
+              onClick={() => setSelectedUsers(new Set())}
+              className="px-3 py-1.5 rounded-lg bg-gray-200 text-gray-700 text-sm font-medium hover:bg-gray-300"
+            >
+              Clear
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="rounded-2xl border bg-white shadow-lg overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
               <tr>
+                <th className="text-left p-3 font-semibold text-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={selectedUsers.size === (activeTab === "staff" ? staffAndAdmins : citizens).length && (activeTab === "staff" ? staffAndAdmins : citizens).length > 0}
+                    onChange={toggleSelectAll}
+                    className="rounded border-gray-300"
+                  />
+                </th>
                 <th className="text-left p-3 font-semibold text-gray-700">Name</th>
                 <th className="text-left p-3 font-semibold text-gray-700">Email</th>
                 <th className="text-left p-3 font-semibold text-gray-700">Role</th>
@@ -298,7 +473,22 @@ export default function AdminUsersPage() {
               {(activeTab === "staff" ? staffAndAdmins : citizens).slice((page - 1) * pageSize, page * pageSize).length > 0 ? 
                 (activeTab === "staff" ? staffAndAdmins : citizens).slice((page - 1) * pageSize, page * pageSize).map((u: any) => (
                 <tr key={u.id} className="odd:bg-white even:bg-gray-50 hover:bg-indigo-50 transition-colors">
-                  <td className="p-3 font-medium">{u.name || "—"}</td>
+                  <td className="p-3">
+                    <input
+                      type="checkbox"
+                      checked={selectedUsers.has(u.id)}
+                      onChange={() => toggleUserSelection(u.id)}
+                      className="rounded border-gray-300"
+                    />
+                  </td>
+                  <td className="p-3 font-medium">
+                    <button
+                      onClick={() => setProfileModalId(u.id)}
+                      className="hover:text-indigo-600 hover:underline"
+                    >
+                      {u.name || "—"}
+                    </button>
+                  </td>
                   <td className="p-3">{u.email}</td>
                   <td className="p-3">
                     {canModifyUser(u) ? (
@@ -343,9 +533,21 @@ export default function AdminUsersPage() {
                     )}
                   </td>
                   <td className="p-3">
-                    <span className={u.is_verified ? "text-green-600" : "text-gray-400"}>
-                      {u.is_verified ? "Yes" : "No"}
-                    </span>
+                    {u.is_verified ? (
+                      <span className="text-green-600 flex items-center gap-1">
+                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                        Verified
+                      </span>
+                    ) : (
+                      <span className="text-red-600 flex items-center gap-1">
+                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                        </svg>
+                        Unverified
+                      </span>
+                    )}
                   </td>
                   {activeTab === "staff" && (
                     <td className="p-3">
@@ -368,19 +570,32 @@ export default function AdminUsersPage() {
                     {u.last_login ? new Date(u.last_login).toLocaleDateString() : "Never"}
                   </td>
                   <td className="p-3">
-                    {canModifyUser(u) && u.role !== "super_admin" && (
-                      <button
-                        onClick={() => setDeleteConfirm({ id: u.id, name: u.name || u.email })}
-                        className="text-red-600 hover:text-red-800 text-xs font-medium hover:underline"
-                      >
-                        Delete
-                      </button>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {canModifyUser(u) && (
+                        <>
+                          <button
+                            onClick={() => handlePasswordReset(u.id)}
+                            className="text-indigo-600 hover:text-indigo-800 text-xs font-medium hover:underline"
+                            title="Send password reset email"
+                          >
+                            Reset Password
+                          </button>
+                          {u.role !== "super_admin" && (
+                            <button
+                              onClick={() => setDeleteConfirm({ id: u.id, name: u.name || u.email })}
+                              className="text-red-600 hover:text-red-800 text-xs font-medium hover:underline"
+                            >
+                              Delete
+                            </button>
+                          )}
+                        </>
+                      )}
+                    </div>
                   </td>
                 </tr>
               )) : (
                 <tr>
-                  <td colSpan={activeTab === "staff" ? 9 : 8} className="p-8 text-center text-gray-500">
+                  <td colSpan={activeTab === "staff" ? 10 : 9} className="p-8 text-center text-gray-500">
                     No {activeTab === "staff" ? "staff/admins" : "citizens"} found. {search && "Try adjusting your filters."}
                   </td>
                 </tr>
@@ -452,6 +667,73 @@ export default function AdminUsersPage() {
               )}
             </div>
           </div>
+        </div>
+      </Modal>
+
+      <Modal
+        open={!!profileModalId}
+        onClose={() => setProfileModalId(null)}
+        title="User Profile"
+      >
+        <div className="space-y-4 p-4">
+          {profileModalId && users.find((u: any) => u.id === profileModalId) && (() => {
+            const u = users.find((u: any) => u.id === profileModalId);
+            return (
+              <>
+                <div className="space-y-2">
+                  <div>
+                    <span className="text-sm font-medium text-gray-600">Full Name:</span>
+                    <div className="text-lg font-semibold">{u.name || "—"}</div>
+                  </div>
+                  <div>
+                    <span className="text-sm font-medium text-gray-600">Email:</span>
+                    <div className="text-lg">{u.email}</div>
+                  </div>
+                  {u.mobile && (
+                    <div>
+                      <span className="text-sm font-medium text-gray-600">Mobile:</span>
+                      <div className="text-lg">{u.mobile}</div>
+                    </div>
+                  )}
+                  <div>
+                    <span className="text-sm font-medium text-gray-600">Role:</span>
+                    <div>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${roleBadges[u.role] || ""}`}>
+                        {u.role.replace("_", " ")}
+                      </span>
+                    </div>
+                  </div>
+                  <div>
+                    <span className="text-sm font-medium text-gray-600">Joined:</span>
+                    <div className="text-sm">{u.created_at ? new Date(u.created_at).toLocaleString() : "—"}</div>
+                  </div>
+                  <div>
+                    <span className="text-sm font-medium text-gray-600">Last Login:</span>
+                    <div className="text-sm">{u.last_login ? new Date(u.last_login).toLocaleString() : "Never"}</div>
+                  </div>
+                </div>
+                {userStats && (
+                  <div className="border-t pt-4 space-y-2">
+                    <h4 className="font-semibold text-gray-800">Activity Stats</h4>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="bg-indigo-50 rounded-lg p-3">
+                        <div className="text-xs text-gray-600">Issues Handled</div>
+                        <div className="text-xl font-bold text-indigo-900">{userStats.issues_handled || 0}</div>
+                      </div>
+                      <div className="bg-emerald-50 rounded-lg p-3">
+                        <div className="text-xs text-gray-600">Issues Created</div>
+                        <div className="text-xl font-bold text-emerald-900">{userStats.issues_created || 0}</div>
+                      </div>
+                      <div className="bg-amber-50 rounded-lg p-3">
+                        <div className="text-xs text-gray-600">Issues Resolved</div>
+                        <div className="text-xl font-bold text-amber-900">{userStats.issues_resolved || 0}</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </div>
       </Modal>
 

@@ -1,7 +1,10 @@
 // src/components/report/IssueDetailModal.tsx
 import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getIssue, listIssueComments, addIssueComment, updateIssueStatus } from "../../services/issues.api";
+import { getIssue, listIssueComments, addIssueComment, updateIssueStatus, getIssueActivity, getRelatedIssues, assignIssue } from "../../services/issues.api";
+import { api } from "../../services/apiClient";
+import MapPicker from "./MapPicker";
+import { formatIssueAge, isOverdue } from "../../utils/issueUtils";
 import { useAuth } from "../../store/useAuth";
 import { useToast } from "../toast/ToastProvider";
 import { CategoryIcon } from "../../utils/categoryIcons";
@@ -31,6 +34,40 @@ export default function IssueDetailModal({ open, issueId, onClose }: { open: boo
   const [comment, setComment] = useState("");
   const [statusChangeModal, setStatusChangeModal] = useState<{ status: "in_progress" | "resolved"; comment: string } | null>(null);
   const [photoViewer, setPhotoViewer] = useState<{ open: boolean; currentIndex: number; photos: string[] }>({ open: false, currentIndex: 0, photos: [] });
+  const [showMap, setShowMap] = useState(false);
+  const [showActivity, setShowActivity] = useState(false);
+  const [assignModal, setAssignModal] = useState(false);
+
+  const { data: activityData } = useQuery({
+    queryKey: ["issue-activity", issueId],
+    queryFn: () => getIssueActivity(issueId!),
+    enabled: !!issueId && showActivity,
+  });
+
+  const { data: relatedIssues } = useQuery({
+    queryKey: ["related-issues", issueId],
+    queryFn: () => getRelatedIssues(issueId!),
+    enabled: !!issueId,
+  });
+
+  const { data: staffUsers } = useQuery({
+    queryKey: ["staff-users"],
+    queryFn: async () => {
+      const { data } = await api.get("/admin/users", { params: { role: "staff" } });
+      return (data || []).filter((u: any) => u.is_active);
+    },
+    enabled: !!assignModal,
+  });
+
+  const assignMut = useMutation({
+    mutationFn: (userId: number | null) => assignIssue(issueId!, userId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["issue", issueId] });
+      setAssignModal(false);
+      toast.show("Issue assigned");
+    },
+    onError: (e: any) => toast.show(e?.response?.data?.detail || "Assignment failed"),
+  });
 
   const addCommentM = useMutation({
     mutationFn: (body: string) => addIssueComment(issueId as number, { body }),
@@ -123,90 +160,233 @@ export default function IssueDetailModal({ open, issueId, onClose }: { open: boo
           </button>
 
           <div className="p-6 border-b bg-gradient-to-r from-gray-50 to-white">
-            <div className="flex flex-col gap-3 pr-12">
-              <div className="flex items-center gap-3">
-                <span className="font-mono text-sm font-semibold text-gray-600 bg-white px-2 py-1 rounded">#{it.id}</span>
-                <span className={`px-3 py-1.5 rounded-full text-xs font-bold border-2 ${statusColor} shadow-sm`}>
+            <div className="flex flex-col gap-4 pr-12">
+              <div className="flex items-center gap-3 flex-wrap">
+                <span className="font-mono text-lg font-bold text-indigo-600 bg-white px-3 py-1.5 rounded-lg border-2 border-indigo-200">#{it.id}</span>
+                <span className={`px-4 py-2 rounded-full text-sm font-bold border-2 ${statusColor} shadow-md`}>
                   {it.status?.replace("_", " ").replace(/\b\w/g, (l: string) => l.toUpperCase())}
                 </span>
-                {it.assigned_to_id && (
-                  <span className="text-xs text-gray-500 bg-white px-2 py-1 rounded border">Assigned</span>
+                {isOverdue(it.created_at, 48) && it.status !== "resolved" && (
+                  <span className="px-3 py-1.5 rounded-full text-xs font-bold bg-red-100 text-red-800 border-2 border-red-300">
+                    Overdue
+                  </span>
                 )}
+              </div>
+
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900 leading-tight mb-2">{it.title}</h1>
+                <div className="flex items-center gap-4 text-sm text-gray-600">
+                  <span>Created {new Date(it.created_at).toLocaleString()}</span>
+                  {it.updated_at && it.updated_at !== it.created_at && (
+                    <span>• Updated {new Date(it.updated_at).toLocaleString()}</span>
+                  )}
+                </div>
               </div>
 
               {it.category && (
                 <div className="flex items-center gap-2 text-sm text-gray-700">
-                  <CategoryIcon category={it.category} className="w-4 h-4 text-indigo-600" />
-                  <span className="font-medium">{it.category}</span>
+                  <CategoryIcon category={it.category} className="w-5 h-5 text-indigo-600" />
+                  <span className="font-semibold">{it.category}</span>
                 </div>
               )}
 
-              <h1 className="text-2xl font-bold text-gray-900 leading-tight">{it.title}</h1>
-
-              <div className="flex flex-col gap-1.5">
-                <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Reported By</span>
+              <div className="flex flex-col gap-2">
+                <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Created By</span>
                 <div className="inline-flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-semibold text-sm">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-semibold">
                     {(creator?.name || creator?.email || "A")[0].toUpperCase()}
                   </div>
-                  <span className="text-base font-bold text-gray-900">
-                    {creator?.name || creator?.email || "Anonymous"}
-                  </span>
+                  <div>
+                    <div className="text-base font-bold text-gray-900">
+                      {creator?.name || creator?.email || "Anonymous"}
+                    </div>
+                    {creator?.email && (
+                      <div className="text-xs text-gray-500">{creator.email}</div>
+                    )}
+                  </div>
                 </div>
               </div>
 
+              {it.assigned_to && (
+                <div className="flex flex-col gap-2">
+                  <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Assigned To</span>
+                  <div className="inline-flex items-center gap-2">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-semibold">
+                      {(it.assigned_to.name || it.assigned_to.email || "S")[0].toUpperCase()}
+                    </div>
+                    <div>
+                      <div className="text-base font-bold text-gray-900">
+                        {it.assigned_to.name || it.assigned_to.email}
+                      </div>
+                      <div className="text-xs text-gray-500">{it.assigned_to.role}</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {it.address && (
-                <a
-                  href={`https://www.google.com/maps?q=${it.lat},${it.lng}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 text-sm text-indigo-600 hover:text-indigo-800 bg-white/80 px-3 py-2 rounded-lg w-fit hover:bg-white transition-colors"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                  <span className="font-medium">{it.address}</span>
-                </a>
+                <div className="flex items-center gap-3">
+                  <a
+                    href={`https://www.google.com/maps?q=${it.lat},${it.lng}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 text-sm text-indigo-600 hover:text-indigo-800 bg-white/80 px-3 py-2 rounded-lg w-fit hover:bg-white transition-colors"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    <span className="font-medium">{it.address}</span>
+                  </a>
+                  {it.lat && it.lng && (
+                    <button
+                      onClick={() => setShowMap(!showMap)}
+                      className="px-3 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700"
+                    >
+                      {showMap ? "Hide Map" : "Show Map"}
+                    </button>
+                  )}
+                </div>
               )}
 
               <div className="flex gap-2 flex-wrap mt-2">
-                {canModify() && it.status === "pending" && it.assigned_to_id && (
-                  <Button
-                    variant="secondary"
-                    onClick={() => setStatusChangeModal({ status: "in_progress", comment: "" })}
-                    disabled={statusM.isPending}
-                    className="text-sm border-2 border-yellow-300 bg-yellow-50 text-yellow-700 hover:bg-yellow-100"
-                  >
-                    Mark In Progress
-                  </Button>
+                {canModify() && (
+                  <>
+                    {!it.assigned_to_id && (
+                      <Button
+                        variant="secondary"
+                        onClick={() => setAssignModal(true)}
+                        className="text-sm"
+                      >
+                        Assign Staff
+                      </Button>
+                    )}
+                    {it.status === "pending" && it.assigned_to_id && (
+                      <Button
+                        variant="secondary"
+                        onClick={() => setStatusChangeModal({ status: "in_progress", comment: "" })}
+                        disabled={statusM.isPending}
+                        className="text-sm border-2 border-yellow-300 bg-yellow-50 text-yellow-700 hover:bg-yellow-100"
+                      >
+                        Mark In Progress
+                      </Button>
+                    )}
+                    {it.status === "in_progress" && (
+                      <Button
+                        onClick={() => setStatusChangeModal({ status: "resolved", comment: "" })}
+                        disabled={statusM.isPending}
+                        className="text-sm bg-emerald-600 hover:bg-emerald-700 shadow-md"
+                      >
+                        Resolve
+                      </Button>
+                    )}
+                    <Button
+                      variant="secondary"
+                      onClick={() => setShowActivity(!showActivity)}
+                      className="text-sm"
+                    >
+                      {showActivity ? "Hide Timeline" : "View Timeline"}
+                    </Button>
+                  </>
                 )}
-                {canModify() && it.status === "in_progress" && (
-                  <Button
-                    onClick={() => setStatusChangeModal({ status: "resolved", comment: "" })}
-                    disabled={statusM.isPending}
-                    className="text-sm bg-emerald-600 hover:bg-emerald-700 shadow-md"
-                  >
-                    Resolve
-                  </Button>
+                {it.status !== "resolved" && (
+                  <div className="text-xs text-gray-600 bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-200">
+                    SLA: To be resolved within 48 hours
+                  </div>
                 )}
               </div>
             </div>
           </div>
 
           <div className="flex-1 overflow-y-auto p-6 space-y-6">
+            {showMap && it.lat && it.lng && (
+              <div className="border rounded-xl overflow-hidden">
+                <MapPicker
+                  initialLat={it.lat}
+                  initialLng={it.lng}
+                  onPick={() => {}}
+                />
+              </div>
+            )}
+
+            {showActivity && activityData && (
+              <div className="border rounded-xl p-4 bg-gray-50">
+                <h3 className="text-lg font-bold text-gray-900 mb-4">Activity Timeline</h3>
+                <div className="space-y-3">
+                  {Array.isArray(activityData) && activityData.length > 0 ? (
+                    activityData.map((activity: any, idx: number) => (
+                      <div key={idx} className="flex gap-3">
+                        <div className="flex-shrink-0 w-2 h-2 rounded-full bg-indigo-500 mt-2"></div>
+                        <div className="flex-1">
+                          <div className="text-sm font-medium text-gray-900">
+                            {activity.kind === "created" && "Issue created"}
+                            {activity.kind === "assigned" && `Assigned to ${activity.user || "someone"}`}
+                            {activity.kind === "in_progress" && "Marked as In Progress"}
+                            {activity.kind === "resolved" && "Resolved"}
+                            {activity.kind === "comment" && `Comment by ${activity.user || "someone"}`}
+                          </div>
+                          {activity.comment && (
+                            <div className="text-sm text-gray-600 mt-1 bg-white p-2 rounded">{activity.comment}</div>
+                          )}
+                          <div className="text-xs text-gray-500 mt-1">
+                            {activity.at ? new Date(activity.at).toLocaleString() : ""}
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center text-gray-500 py-4">No activity recorded yet</div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {relatedIssues && relatedIssues.length > 0 && (
+              <div className="border rounded-xl p-4 bg-indigo-50">
+                <h3 className="text-lg font-bold text-gray-900 mb-4">Related / Nearby Issues</h3>
+                <div className="space-y-2">
+                  {relatedIssues.map((related: any) => (
+                    <button
+                      key={related.id}
+                      onClick={() => {
+                        onClose();
+                        setTimeout(() => {
+                          window.location.hash = `#issue-${related.id}`;
+                        }, 100);
+                      }}
+                      className="w-full text-left p-3 bg-white rounded-lg hover:bg-indigo-100 transition-colors border border-indigo-200"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="font-medium text-gray-900">#{related.id} {related.title}</div>
+                          <div className="text-xs text-gray-600">{related.category} • {related.distance_m}m away</div>
+                        </div>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          related.status === "resolved" ? "bg-emerald-100 text-emerald-800" :
+                          related.status === "in_progress" ? "bg-yellow-100 text-yellow-800" :
+                          "bg-amber-100 text-amber-800"
+                        }`}>
+                          {related.status.replace("_", " ")}
+                        </span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div>
               <h3 className="text-lg font-bold text-gray-900 mb-2 flex items-center gap-2">
                 <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
-                <span>Issue Details: </span>
-                <span className="text-gray-900 whitespace-pre-wrap font-normal">
-                  {it.description || (
-                    <span className="text-gray-500 italic">No description provided.</span>
-                  )}
-                </span>
+                <span>Description</span>
               </h3>
+              <div className="text-gray-900 whitespace-pre-wrap font-normal bg-gray-50 p-4 rounded-lg border">
+                {it.description || (
+                  <span className="text-gray-500 italic">No description provided.</span>
+                )}
+              </div>
             </div>
 
             {it.photos && it.photos.length > 0 && (
@@ -401,6 +581,31 @@ export default function IssueDetailModal({ open, issueId, onClose }: { open: boo
               </button>
             </>
           )}
+        </div>
+      </Modal>
+
+      {/* Assignment Modal */}
+      <Modal
+        open={assignModal}
+        onClose={() => setAssignModal(false)}
+        title="Assign Issue"
+      >
+        <div className="space-y-4 p-4">
+          <select
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            onChange={(e) => {
+              const userId = e.target.value === "unassigned" ? null : parseInt(e.target.value);
+              assignMut.mutate(userId);
+            }}
+          >
+            <option value="">Select staff member...</option>
+            <option value="unassigned">Unassigned</option>
+            {(staffUsers || []).map((u: any) => (
+              <option key={u.id} value={String(u.id)}>
+                {u.name || u.email} ({u.role})
+              </option>
+            ))}
+          </select>
         </div>
       </Modal>
     </>
