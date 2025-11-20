@@ -5,11 +5,9 @@ This project was created as part of **HackArena 2025, hosted by Masaiverse × No
 
 ## 🌐 Live Demo
 
-**Frontend:**  
-https://imc.varunanalytics.com/
+[![Frontend Live](https://img.shields.io/badge/Frontend-Live-green)](https://imc.varunanalytics.com/)
 
-**Backend API:**  
-https://imcb.varunanalytics.com/
+[![Backend Live](https://img.shields.io/badge/Backend-API-blue)](https://imcb.varunanalytics.com/)
 
 ---
 

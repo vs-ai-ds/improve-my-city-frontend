@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getIssue, listIssueComments, addIssueComment, updateIssueStatus, getIssueActivity, getRelatedIssues, assignIssue } from "../../services/issues.api";
 import { api } from "../../services/apiClient";
 import MapPicker from "./MapPicker";
-import { formatIssueAge, isOverdue } from "../../utils/issueUtils";
+import { isOverdue } from "../../utils/issueUtils";
 import { useAuth } from "../../store/useAuth";
 import { useToast } from "../toast/ToastProvider";
 import { CategoryIcon } from "../../utils/categoryIcons";
@@ -118,7 +118,9 @@ export default function IssueDetailModal({ open, issueId, onClose }: { open: boo
     lng?: number;
     photos?: string[];
     created_at: string;
+    updated_at?: string | null;
     assigned_to_id?: number;
+    assigned_to?: { id: number; name?: string; email?: string; role?: string } | null;
     creator?: { name?: string; email?: string; id?: number };
     creator_name?: string;
     creator_email?: string;

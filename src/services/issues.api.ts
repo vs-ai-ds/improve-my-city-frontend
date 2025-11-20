@@ -15,6 +15,7 @@ export interface Issue {
   lat?: number | null;
   lng?: number | null;
   created_at: string;
+  updated_at?: string | null;
   created_by_email?: string;
   address?: string;
   photos?: string[];
@@ -22,6 +23,7 @@ export interface Issue {
   creator_email?: string;
   creator?: { name?: string; email?: string };
   assigned_to_id?: number | null;
+  assigned_to?: { id: number; name?: string; email?: string; role?: string } | null;
 }
 
 export async function listIssues(params: Record<string, any>) {

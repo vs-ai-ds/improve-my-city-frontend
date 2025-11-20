@@ -10,12 +10,11 @@ export const api = axios.create({
 });
 
 // Attach access token if present
-api.interceptors.request.use((config: any) => {
+api.interceptors.request.use((config) => {
   const t =
     localStorage.getItem("access_token") ||
     sessionStorage.getItem("access_token");
-  if (t) {
-    config.headers = config.headers || {};
+  if (t && config.headers) {
     config.headers.Authorization = `Bearer ${t}`;
   }
   return config;
@@ -25,10 +24,10 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     const status = error.response?.status;
-    const cfg: any = error.config || {};
+    const cfg = error.config as { skipAuthInterceptor?: boolean } | undefined;
 
     // If this request explicitly asked to skip global 401 handling, just reject
-    if (cfg.skipAuthInterceptor) {
+    if (cfg?.skipAuthInterceptor) {
       return Promise.reject(error);
     }
 

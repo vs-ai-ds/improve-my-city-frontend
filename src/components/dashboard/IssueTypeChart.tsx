@@ -5,14 +5,12 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGri
 import { STATUS_COLORS } from "../../constants/statusColors";
 
 export default function IssueTypeChart({ 
-  range,
-  filters,
   byTypeStatus,
   onTypeClick,
   selectedCategory,
   onClearFilter
 }: { 
-  range: RangeKey;
+  range?: RangeKey;
   filters?: Partial<Pick<IssueFilters, "status" | "categoryId" | "regionId" | "myIssuesOnly">>;
   byTypeStatus?: Array<{ type: string; pending: number; in_progress: number; resolved: number }>;
   onTypeClick?: (type: string) => void;

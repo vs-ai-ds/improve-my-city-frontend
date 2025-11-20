@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "../../services/apiClient";
 import { Link, useNavigate } from "react-router-dom";
 import { useState, useMemo } from "react";
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from "recharts";
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import IssuesHeatmap from "../../components/admin/IssuesHeatmap";
 
 type TimeRange = "today" | "7d" | "30d" | "year" | "all";

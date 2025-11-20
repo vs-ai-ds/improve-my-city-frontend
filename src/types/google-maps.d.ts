@@ -6,6 +6,7 @@ declare namespace google {
       panTo(latlng: any): void;
       setZoom(zoom: number): void;
       addListener(event: string, handler: (e: any) => void): void;
+      fitBounds(bounds: LatLngBounds): void;
     }
     
     namespace marker {
@@ -49,7 +50,8 @@ declare namespace google {
     }
     
     class LatLngBounds {
-      constructor(sw: LatLng, ne: LatLng);
+      constructor(sw?: LatLng, ne?: LatLng);
+      extend(latlng: LatLng): void;
     }
     
     interface MapMouseEvent {

@@ -465,12 +465,12 @@ export default function IssueTypesPage() {
         onClose={() => setDeleteConfirm(null)}
         onConfirm={confirmDelete}
         title="Delete Issue Type"
-        message={deleteConfirm?.issue_count > 0 
-          ? `Cannot delete "${deleteConfirm?.name}" — ${deleteConfirm?.issue_count} issue(s) use this type. Mark inactive instead.`
+        message={deleteConfirm && deleteConfirm.issue_count > 0 
+          ? `Cannot delete "${deleteConfirm.name}" — ${deleteConfirm.issue_count} issue(s) use this type. Mark inactive instead.`
           : `Are you sure you want to delete "${deleteConfirm?.name}"? This action cannot be undone.`}
-        confirmText={deleteConfirm?.issue_count > 0 ? "OK" : "Delete"}
+        confirmText={deleteConfirm && deleteConfirm.issue_count > 0 ? "OK" : "Delete"}
         cancelText="Cancel"
-        variant={deleteConfirm?.issue_count > 0 ? "default" : "danger"}
+        variant={deleteConfirm && deleteConfirm.issue_count > 0 ? "warning" : "danger"}
       />
 
       <Modal

@@ -6,7 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "react-router-dom";
 import { api } from "../services/apiClient";
 import { listIssues } from "../services/issues.api";
-import { getByType, getByTypeStatus, getByState, getByStateStatus } from "../services/stats.api";
+import { getByTypeStatus, getByState, getByStateStatus } from "../services/stats.api";
 import { useAuth } from "../store/useAuth";
 import { useReportModal } from "../store/useReportModal";
 import { useIssueFilters, type IssueStatusFilter } from "../hooks/useIssueFilters";
@@ -24,9 +24,6 @@ import { getStatusColors } from "../constants/statusColors";
 import { CategoryIcon } from "../utils/categoryIcons";
 
 const USE_DEMO = false;
-
-type RangeKey = "today" | "7d" | "15d" | "30d" | "all";
-const RANGES: RangeKey[] = ["today", "7d", "15d", "30d", "all"];
 
 function prettyDuration(sec?: number) {
   if (!sec || sec < 0) return "—";
@@ -95,13 +92,6 @@ export default function HomePage() {
   const { data: summaryAllTime } = useQuery({
     queryKey: ["stats:summary", "all"],
     queryFn: async () => (await api.get("/issues/stats/summary", { params: { range: "all" } })).data,
-    refetchInterval: 1800000,
-    refetchOnWindowFocus: false,
-  });
-
-  const { data: byType } = useQuery({
-    queryKey: ["stats:by-type", rangeKey, chartFilters],
-    queryFn: () => getByType(rangeKey, chartFilters, user?.id),
     refetchInterval: 1800000,
     refetchOnWindowFocus: false,
   });

@@ -18,7 +18,7 @@ export default function IssuesTablePage() {
   const { user } = useAuth();
   const toast = useToast();
   const qc = useQueryClient();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   
   const [search, setSearch] = useState("");
   const [detailIssueId, setDetailIssueId] = useState<number | null>(null);

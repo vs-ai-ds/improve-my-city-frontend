@@ -5,14 +5,12 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGri
 import { STATUS_COLORS } from "../../constants/statusColors";
 
 export default function RegionChart({ 
-  range,
-  filters,
   byStateStatus,
   onRegionClick,
   selectedState,
   onClearFilter
 }: { 
-  range: RangeKey;
+  range?: RangeKey;
   filters?: Partial<Pick<IssueFilters, "status" | "categoryId" | "regionId" | "myIssuesOnly">>;
   byStateStatus?: Array<{ state_code: string; pending: number; in_progress: number; resolved: number }>;
   onRegionClick?: (state: string) => void;
