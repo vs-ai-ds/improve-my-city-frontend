@@ -13,22 +13,21 @@ This project was created as part of **HackArena 2025, hosted by Masaiverse × No
 
 ## 📸 Screenshots
 ### Public-Facing Features
-- `docs/screenshots/homepage-dashboard.png` - Main dashboard with charts and issue list
-- `docs/screenshots/report-issue-modal.png` - Issue reporting modal with map picker
-- `docs/screenshots/issue-detail-view.png` - Enhanced issue detail with timeline and related issues
-- `docs/screenshots/chatbot-interface.png` - AI chatbot for citizen queries
+![Main dashboard with charts and issue list](docs/screenshots/homepage-dashboard.png)
+![Issue reporting modal with map picker](docs/screenshots/report-issue-modal.png)
+![Enhanced issue detail with timeline and related issues](docs/screenshots/issue-detail-view.png)
+![AI chatbot for citizen queries](docs/screenshots/chatbot-interface.png)
 
 ### Admin Features
-- `docs/screenshots/admin-dashboard.png` - Admin dashboard with analytics and heatmap
-- `docs/screenshots/issues-table.png` - Issues management table with filters and bulk actions
-- `docs/screenshots/issue-types-management.png` - Issue types with colors, descriptions, and drag-drop
-- `docs/screenshots/users-management.png` - User management with profile modals and bulk actions
-- `docs/screenshots/settings-page.png` - Settings page with SLA, branding, and notifications
+![Admin dashboard with analytics and heatmap](docs/screenshots/admin-dashboard.png)
+![Issues management table with filters and bulk actions](docs/screenshots/issues-table.png)
+![Issue types with colors, descriptions, and drag-drop](docs/screenshots/issue-types-management.png)
+![User management with profile modals and bulk actions](docs/screenshots/users-management.png)
+![Settings page with SLA, branding, and notifications](docs/screenshots/settings-page.png)
 
 ### Mobile Experience
-- `docs/screenshots/mobile-homepage.png` - Responsive mobile view
-- `docs/screenshots/mobile-reporting.png` - Mobile issue reporting flow
-
+![Responsive mobile view](docs/screenshots/mobile-homepage.png)
+![Responsive mobile view](docs/screenshots/mobile-reporting.png)
 ---
 
 ## ✨ Features
