@@ -13,21 +13,46 @@ This project was created as part of **HackArena 2025, hosted by Masaiverse × No
 
 ## 📸 Screenshots
 ### Public-Facing Features
+
+🏙️ Dashboard — Overview of Active Issues
 ![Main dashboard with charts and issue list](docs/screenshots/homepage-dashboard.png)
+
+📍 Report an Issue — Map Picker & Category Selection
 ![Issue reporting modal with map picker](docs/screenshots/report-issue-modal.png)
+
+🔎 Issue Detail — Timeline, Activity & Related Issues
 ![Enhanced issue detail with timeline and related issues](docs/screenshots/issue-detail-view.png)
+
+📊 Interactive Charts — Issue Trends & Category Breakdown
+![Interactive Charts — Issue Trends & Category Breakdown](docs/screenshots/pie_chart_interactive.png)
+
+🤖 AI Chatbot — Citizen FAQs & Issue Assistance
 ![AI chatbot for citizen queries](docs/screenshots/chatbot-interface.png)
 
 ### Admin Features
+
+📊 Admin Dashboard — Analytics, Regions & Heatmaps
 ![Admin dashboard with analytics and heatmap](docs/screenshots/admin-dashboard.png)
+
+🗂️ Issue Management — Filters, Pagination & Bulk Actions
 ![Issues management table with filters and bulk actions](docs/screenshots/issues-table.png)
+
+🎨 Issue Types — Colors, Order & Descriptions
 ![Issue types with colors, descriptions, and drag-drop](docs/screenshots/issue-types-management.png)
+
+👥 User Management — Staff, Citizens & Roles
 ![User management with profile modals and bulk actions](docs/screenshots/users-management.png)
+
+⚙️ Settings — SLA, Branding, Email & Notifications
 ![Settings page with SLA, branding, and notifications](docs/screenshots/settings-page.png)
 
 ### Mobile Experience
-![Responsive mobile view](docs/screenshots/mobile-homepage.png)
-![Responsive mobile view](docs/screenshots/mobile-reporting.png)
+
+📱 Home — Responsive Dashboard View
+![Responsive mobile view](docs/screenshots/mobile-homepage.jpeg)
+
+📝 Report Issue — Mobile Flow
+![Responsive mobile view](docs/screenshots/mobile-reporting.jpeg)
 ---
 
 ## ✨ Features
