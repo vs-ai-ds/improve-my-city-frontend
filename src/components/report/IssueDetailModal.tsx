@@ -74,9 +74,6 @@ export default function IssueDetailModal({ open, issueId, onClose }: { open: boo
     onError: (e: any) => {
       toast.show(e?.response?.data?.detail || "Failed to assign issue");
     },
-    onError: (e: any) => {
-      toast.show(e?.response?.data?.detail || "Assignment failed");
-    },
   });
 
   const addCommentM = useMutation({
