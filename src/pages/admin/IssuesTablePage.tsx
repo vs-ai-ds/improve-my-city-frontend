@@ -251,9 +251,9 @@ export default function IssuesTablePage() {
       setReassignIssue(null);
       setSelectedAssignUserId("");
       setAssignSearch("");
-      toast.show("Issue reassigned");
+      toast.show("Issue assigned successfully");
     },
-    onError: (e: any) => toast.show(e?.response?.data?.detail || "Failed to reassign"),
+    onError: (e: any) => toast.show(e?.response?.data?.detail || "Failed to assign issue"),
   });
 
   const handleStatusChange = (issue: any, newStatus: "in_progress" | "resolved") => {

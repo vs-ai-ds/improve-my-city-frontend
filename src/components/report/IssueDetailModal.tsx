@@ -69,7 +69,10 @@ export default function IssueDetailModal({ open, issueId, onClose }: { open: boo
       setAssignModal(false);
       setAssignSearch("");
       setSelectedAssignUserId(null);
-      toast.show("Issue assigned");
+      toast.show("Issue assigned successfully");
+    },
+    onError: (e: any) => {
+      toast.show(e?.response?.data?.detail || "Failed to assign issue");
     },
     onError: (e: any) => {
       toast.show(e?.response?.data?.detail || "Assignment failed");
