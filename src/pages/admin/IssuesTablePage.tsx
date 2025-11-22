@@ -758,7 +758,7 @@ export default function IssuesTablePage() {
                               Timeline
                             </button>
 
-                            {canModify && (
+                            {canModify && it.status !== "resolved" && (
                               <button
                                 onClick={() =>
                                   setReassignIssue({

@@ -287,13 +287,22 @@ export default function IssueDetailModal({ open, issueId, onClose }: { open: boo
               <div className="flex gap-2 flex-wrap mt-2">
                 {canModify() && (
                   <>
-                    {!it.assigned_to_id && (
+                    {!it.assigned_to_id && it.status !== "resolved" && (
                       <Button
                         variant="secondary"
                         onClick={() => setAssignModal(true)}
                         className="text-sm"
                       >
                         Assign Staff
+                      </Button>
+                    )}
+                    {it.assigned_to_id && it.status !== "resolved" && (
+                      <Button
+                        variant="secondary"
+                        onClick={() => setAssignModal(true)}
+                        className="text-sm"
+                      >
+                        Reassign
                       </Button>
                     )}
                     {it.status === "pending" && it.assigned_to_id && (

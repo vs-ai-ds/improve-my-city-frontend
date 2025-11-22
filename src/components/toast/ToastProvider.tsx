@@ -34,7 +34,7 @@ function ToastProvider({ children }: { children: ReactNode }) {
     <ToastCtx.Provider value={value}>
       {children}
       {createPortal(
-        <div className="fixed inset-0 pointer-events-none z-[9999] flex flex-col items-end p-4 gap-3">
+        <div className="fixed inset-0 pointer-events-none z-[99999] flex flex-col items-end p-4 gap-3">
           {toasts.map((t) => (
             <div key={t.id} className="pointer-events-auto w-full max-w-md rounded-xl bg-indigo-600 text-white shadow-2xl ring-2 ring-indigo-400 p-4 animate-in slide-in-from-right">
               {t.title && <div className="text-base font-bold mb-1">{t.title}</div>}
