@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../../services/apiClient";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useState, useMemo } from "react";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import IssuesHeatmap from "../../components/admin/IssuesHeatmap";
@@ -223,24 +223,6 @@ export default function AdminLandingPage() {
         </div>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-3">
-        <Link to="/admin/issues" className="rounded-2xl border p-4 bg-white/90 backdrop-blur hover:shadow transition-shadow">
-          <div className="text-lg font-semibold">Manage Issues</div>
-          <p className="text-sm text-gray-600">Search, assign, and change status</p>
-        </Link>
-        <Link to="/admin/issue-types" className="rounded-2xl border p-4 bg-white/90 backdrop-blur hover:shadow transition-shadow">
-          <div className="text-lg font-semibold">Manage Issue Types</div>
-          <p className="text-sm text-gray-600">Add, rename, or remove types</p>
-        </Link>
-        <Link to="/admin/users" className="rounded-2xl border p-4 bg-white/90 backdrop-blur hover:shadow transition-shadow">
-          <div className="text-lg font-semibold">Users & Staff</div>
-          <p className="text-sm text-gray-600">Admins, staff regions, citizens</p>
-        </Link>
-        <Link to="/admin/settings" className="rounded-2xl border p-4 bg-white/90 backdrop-blur hover:shadow transition-shadow">
-          <div className="text-lg font-semibold">App Settings</div>
-          <p className="text-sm text-gray-600">Anonymous reporting, email sender, etc.</p>
-        </Link>
-      </div>
     </div>
   );
 }

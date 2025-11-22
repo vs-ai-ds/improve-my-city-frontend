@@ -27,7 +27,7 @@ export default function IssueDetailModal({ open, issueId, onClose }: { open: boo
 
   const commentsQ = useQuery({
     queryKey: ["issue-comments", issueId],
-    enabled: !!open && !!issueId,
+    enabled: !!open && !!issueId && issueId !== null && !isNaN(Number(issueId)),
     queryFn: () => listIssueComments(issueId as number),
   });
 
@@ -37,6 +37,8 @@ export default function IssueDetailModal({ open, issueId, onClose }: { open: boo
   const [showMap, setShowMap] = useState(false);
   const [showActivity, setShowActivity] = useState(false);
   const [assignModal, setAssignModal] = useState(false);
+  const [assignSearch, setAssignSearch] = useState("");
+  const [selectedAssignUserId, setSelectedAssignUserId] = useState<number | null>(null);
 
   const { data: activityData } = useQuery({
     queryKey: ["issue-activity", issueId],
@@ -63,10 +65,15 @@ export default function IssueDetailModal({ open, issueId, onClose }: { open: boo
     mutationFn: (userId: number | null) => assignIssue(issueId!, userId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["issue", issueId] });
+      qc.invalidateQueries({ queryKey: ["admin-issues"] });
       setAssignModal(false);
+      setAssignSearch("");
+      setSelectedAssignUserId(null);
       toast.show("Issue assigned");
     },
-    onError: (e: any) => toast.show(e?.response?.data?.detail || "Assignment failed"),
+    onError: (e: any) => {
+      toast.show(e?.response?.data?.detail || "Assignment failed");
+    },
   });
 
   const addCommentM = useMutation({
@@ -103,9 +110,9 @@ export default function IssueDetailModal({ open, issueId, onClose }: { open: boo
 
   if (!open) return null;
   if (issueQ.isLoading)
-    return <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/10">Loading…</div>;
+    return <div className="fixed inset-0 z-[10002] flex items-center justify-center bg-black/10">Loading…</div>;
   if (issueQ.error)
-    return <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/10">Error loading issue</div>;
+    return <div className="fixed inset-0 z-[10002] flex items-center justify-center bg-black/10">Error loading issue</div>;
 
   const it = issueQ.data as {
     id: number;
@@ -124,6 +131,7 @@ export default function IssueDetailModal({ open, issueId, onClose }: { open: boo
     creator?: { name?: string; email?: string; id?: number };
     creator_name?: string;
     creator_email?: string;
+    state_code?: string | null;
   } | null;
   if (!it) return null;
 
@@ -133,6 +141,17 @@ export default function IssueDetailModal({ open, issueId, onClose }: { open: boo
     if (!user || !it) return false;
     if (["super_admin", "admin"].includes(user.role)) return true;
     if (user.role === "staff" && it.assigned_to_id === user.id) return true;
+    return false;
+  };
+
+  const canViewEmail = () => {
+    if (!user || !it) return false;
+    if (["super_admin", "admin"].includes(user.role)) return true;
+    if (it.assigned_to_id === user.id) return true;
+    if (user.role === "staff" && it.state_code) {
+      const userRegions = qc.getQueryData(["user-regions", user.id]) as any[];
+      return userRegions?.some((r: any) => r.state_code === it.state_code) || false;
+    }
     return false;
   };
 
@@ -151,7 +170,7 @@ export default function IssueDetailModal({ open, issueId, onClose }: { open: boo
 
   return (
     <>
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur p-4">
+      <div className="fixed inset-0 z-[10002] flex items-center justify-center bg-black/40 backdrop-blur p-4">
         <div className="relative w-full max-w-4xl bg-white rounded-2xl shadow-xl max-h-[92vh] overflow-hidden flex flex-col">
           <button
             onClick={onClose}
@@ -177,10 +196,24 @@ export default function IssueDetailModal({ open, issueId, onClose }: { open: boo
 
               <div>
                 <h1 className="text-3xl font-bold text-gray-900 leading-tight mb-2">{it.title}</h1>
-                <div className="flex items-center gap-4 text-sm text-gray-600">
-                  <span>Created {new Date(it.created_at).toLocaleString()}</span>
+                <div className="text-sm text-gray-600 mt-2">
+                  <div>Created: {new Date(it.created_at).toLocaleString("en-IN", {
+                    day: "2-digit",
+                    month: "short",
+                    year: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    hour12: true
+                  })}</div>
                   {it.updated_at && it.updated_at !== it.created_at && (
-                    <span>• Updated {new Date(it.updated_at).toLocaleString()}</span>
+                    <div className="mt-1">Updated: {new Date(it.updated_at).toLocaleString("en-IN", {
+                      day: "2-digit",
+                      month: "short",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      hour12: true
+                    })}</div>
                   )}
                 </div>
               </div>
@@ -202,7 +235,7 @@ export default function IssueDetailModal({ open, issueId, onClose }: { open: boo
                     <div className="text-base font-bold text-gray-900">
                       {creator?.name || creator?.email || "Anonymous"}
                     </div>
-                    {creator?.email && (
+                    {creator?.email && canViewEmail() && (
                       <div className="text-xs text-gray-500">{creator.email}</div>
                     )}
                   </div>
@@ -589,25 +622,101 @@ export default function IssueDetailModal({ open, issueId, onClose }: { open: boo
       {/* Assignment Modal */}
       <Modal
         open={assignModal}
-        onClose={() => setAssignModal(false)}
+        onClose={() => {
+          setAssignModal(false);
+          setAssignSearch("");
+          setSelectedAssignUserId(null);
+        }}
         title="Assign Issue"
       >
         <div className="space-y-4 p-4">
-          <select
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400"
-            onChange={(e) => {
-              const userId = e.target.value === "unassigned" ? null : parseInt(e.target.value);
-              assignMut.mutate(userId);
-            }}
-          >
-            <option value="">Select staff member...</option>
-            <option value="unassigned">Unassigned</option>
-            {(staffUsers || []).map((u: any) => (
-              <option key={u.id} value={String(u.id)}>
-                {u.name || u.email} ({u.role})
-              </option>
-            ))}
-          </select>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Assign to:</label>
+            <div className="relative">
+              <div className="max-h-60 overflow-y-auto border border-gray-300 rounded-lg bg-white shadow-lg">
+                <div className="p-2 sticky top-0 bg-white border-b border-gray-200 z-10">
+                  <input
+                    type="text"
+                    value={assignSearch}
+                    onChange={(e) => setAssignSearch(e.target.value)}
+                    placeholder="Search by name or email..."
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                    onClick={(e) => e.stopPropagation()}
+                    autoFocus
+                  />
+                </div>
+                <div className="py-1">
+                  {(staffUsers || [])
+                    .filter((u: any) => {
+                      if (!assignSearch.trim()) return true;
+                      const searchLower = assignSearch.toLowerCase();
+                      return (
+                        (u.name || "").toLowerCase().includes(searchLower) ||
+                        (u.email || "").toLowerCase().includes(searchLower) ||
+                        (u.role || "").toLowerCase().includes(searchLower)
+                      );
+                    })
+                    .map((u: any) => (
+                      <button
+                        key={u.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedAssignUserId(u.id);
+                        }}
+                        className={`w-full text-left px-3 py-2 rounded hover:bg-gray-100 ${
+                          selectedAssignUserId === u.id ? "bg-indigo-50 text-indigo-700 font-medium" : "text-gray-700"
+                        }`}
+                      >
+                        <div className="font-medium">{u.name || u.email}</div>
+                        <div className="text-xs text-gray-500">{u.role}</div>
+                      </button>
+                    ))}
+                  {assignSearch.trim() && (staffUsers || []).filter((u: any) => {
+                    const searchLower = assignSearch.toLowerCase();
+                    return (
+                      (u.name || "").toLowerCase().includes(searchLower) ||
+                      (u.email || "").toLowerCase().includes(searchLower) ||
+                      (u.role || "").toLowerCase().includes(searchLower)
+                    );
+                  }).length === 0 && (
+                    <div className="px-3 py-2 text-sm text-gray-500">No users found</div>
+                  )}
+                </div>
+              </div>
+            </div>
+            {selectedAssignUserId && (
+              <div className="mt-2 text-sm text-gray-600">
+                Selected: {
+                  (staffUsers || []).find((u: any) => u.id === selectedAssignUserId)?.name || 
+                  (staffUsers || []).find((u: any) => u.id === selectedAssignUserId)?.email || 
+                  "Unknown"
+                }
+              </div>
+            )}
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setAssignModal(false);
+                setAssignSearch("");
+                setSelectedAssignUserId(null);
+              }}
+              disabled={assignMut.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (selectedAssignUserId !== null) {
+                  assignMut.mutate(selectedAssignUserId);
+                }
+              }}
+              disabled={selectedAssignUserId === null || assignMut.isPending}
+            >
+              {assignMut.isPending ? "Assigning…" : "Assign"}
+            </Button>
+          </div>
         </div>
       </Modal>
     </>

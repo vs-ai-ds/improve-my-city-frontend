@@ -10,13 +10,14 @@ import { useReportModal } from "../../store/useReportModal";
 import { useAuth } from "../../store/useAuth";
 import MapPicker from "./MapPicker";
 import { useToast } from "../toast/ToastProvider";
+import DuplicateIssueModal from "./DuplicateIssueModal";
+import IssueDetailModal from "./IssueDetailModal";
 
 const ALLOWED = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 const MAX_FILES = 10, MAX_BYTES = 2 * 1024 * 1024;
 const inIndia = (lat?: number|null, lng?: number|null) =>
   lat != null && lng != null && lat >= 6.5 && lat <= 37.6 && lng >= 68.1 && lng <= 97.4;
 
-//function inIndia(lat:number,lng:number){ return lat>=6.0 && lat<=37.1 && lng>=68.1 && lng<=97.4; }
 
 export default function ReportModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { user } = useAuth();
@@ -33,6 +34,10 @@ export default function ReportModal({ open, onClose }: { open: boolean; onClose:
   const [previews, setPreviews] = useState<string[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [ok, setOk] = useState<{ id:number; title:string } | null>(null);
+  const [duplicateModal, setDuplicateModal] = useState<{ issueId: number; message: string } | null>(null);
+  const [proceedAnyway, setProceedAnyway] = useState(false);
+  const [viewIssueId, setViewIssueId] = useState<number | null>(null);
+  const [savedDuplicateForDetail, setSavedDuplicateForDetail] = useState<{ issueId: number; message: string } | null>(null);
   const toast = useToast();
 
   const { data: types } = useQuery({
@@ -46,7 +51,7 @@ export default function ReportModal({ open, onClose }: { open: boolean; onClose:
   useEffect(() => {
     if (!open) return;
     setTitle(""); setCategory(""); setDescription(""); setAddress(""); setErr(null); setOk(null);
-    setFiles([]); setPreviews([]);
+    setFiles([]); setPreviews([]); setDuplicateModal(null); setProceedAnyway(false); setViewIssueId(null); setSavedDuplicateForDetail(null);
     setLat((v) => (typeof v === "number" ? v : 28.6139));
     setLng((v) => (typeof v === "number" ? v : 77.2090));
     
@@ -116,6 +121,7 @@ export default function ReportModal({ open, onClose }: { open: boolean; onClose:
   const titleOk = title.trim().length >= 3 && title.trim().length <= 200;
   const descOk = description.trim().length >= 1 && description.trim().length <= 1000;
   const catOk = !!category;
+  const addressOk = address.trim().length >= 3;
   const coordsOk = typeof lat === "number" && typeof lng === "number";
   const filesOk = (() => {
     if (files.length === 0) return true;
@@ -123,7 +129,7 @@ export default function ReportModal({ open, onClose }: { open: boolean; onClose:
     for (const f of files) { if (!ALLOWED.has(f.type) || f.size > MAX_BYTES) return false; }
     return true;
   })();
-  const ready = titleOk && descOk && catOk && coordsOk && filesOk && lat!==undefined && lng!==undefined;
+  const ready = titleOk && descOk && catOk && addressOk && coordsOk && filesOk && lat!==undefined && lng!==undefined;
 
   const mut = useMutation({
     mutationFn: async () => {
@@ -131,9 +137,13 @@ export default function ReportModal({ open, onClose }: { open: boolean; onClose:
         toast.show("Please complete all required fields.");
         throw new Error("Please complete all required fields.");
       }
-      if (!title?.trim() || !category) {
-        toast.show("Please fill required fields.");
+      if (!title?.trim() || !category || !address?.trim()) {
+        toast.show("Please fill all required fields including address.");
         throw new Error("missing-fields");
+      }
+      if (address.trim().length < 3) {
+        toast.show("Address must be at least 3 characters.");
+        throw new Error("invalid-address");
       }
       if (lat == null || lng == null) {
         toast.show("Please pick a location.");
@@ -154,25 +164,42 @@ export default function ReportModal({ open, onClose }: { open: boolean; onClose:
       form.append("description", description?.trim() || "");
       form.append("lat", String(lat));
       form.append("lng", String(lng));
-      form.append("address", address || "");
+      form.append("address", address.trim());
       form.append("country", "IN");
       if (files.length > 0) {
         files.forEach((f) => form.append("files", f));
       }
 
-      const res = await createIssue(form); 
+      if (proceedAnyway) {
+        form.append("bypass_duplicate_check", "true");
+      }
+      
+      const res = await createIssue(form);
+      if ((res as any).duplicate) {
+        const dupRes = res as { duplicate: boolean; existing_issue_id: number; message: string };
+        setDuplicateModal({
+          issueId: dupRes.existing_issue_id,
+          message: dupRes.message
+        });
+        throw new Error("DUPLICATE_DETECTED");
+      }
       return res as { id:number; title:string };
     },
     onSuccess: (data) => {
-      toast.show(`Report submitted — ticket #${data.id}`);
+      if (!data) return;
+      setDuplicateModal(null);
+      setProceedAnyway(false);
+      toast.show(`Report submitted — ticket #${data.id}`, { timeoutMs: 5000 });
       setOk({ id: data.id, title: data.title });
     },
     onError: (e: any) => {
+      if (e?.message === "DUPLICATE_DETECTED") {
+        return;
+      }
       if (e?.response?.status === 401) {
         const msg = "Your session has expired. Please log in again to submit a report.";
         toast.show(msg);
         setErr(msg);
-        // Close modal and let user re-authenticate
         setTimeout(() => onClose(), 2000);
       } else {
         const msg = e?.response?.data?.detail || e?.message || "Submission failed";
@@ -191,22 +218,28 @@ export default function ReportModal({ open, onClose }: { open: boolean; onClose:
     );
   }
 
+  const handleModalClose = () => {
+    if (!duplicateModal) {
+      onClose();
+    }
+  };
+
   const footer = ok ? (
     <div className="flex items-center justify-between">
-      <div className="text-sm text-emerald-700">Ticket <b>#{ok.id}</b> created. A confirmation email was sent.</div>
-      <Button onClick={onClose}>Close</Button>
+      <Button onClick={handleModalClose}>Close</Button>
     </div>
   ) : (
     <div className="flex items-center gap-3">
-      <Button onClick={() => mut.mutate()} disabled={!ready || mut.isPending}>
+      <Button onClick={() => mut.mutate()} disabled={!ready || mut.isPending || !!duplicateModal}>
         {mut.isPending ? "Submitting…" : "Submit"}
       </Button>
-      <Button variant="secondary" onClick={onClose}>Cancel</Button>
+      <Button variant="secondary" onClick={handleModalClose} disabled={!!duplicateModal}>Cancel</Button>
     </div>
   );
 
   return (
-    <Modal open={open} onClose={onClose} title="Report an issue" wide footer={footer}>
+    <>
+    <Modal open={open} onClose={handleModalClose} title="Report an issue" wide footer={footer}>
       {!ok ? (
         <div className="space-y-4">
           <div>
@@ -237,8 +270,9 @@ export default function ReportModal({ open, onClose }: { open: boolean; onClose:
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div className="md:col-span-2">
-              <label className="text-sm">Address</label>
-              <input ref={addressRef} value={address} onChange={(e)=>setAddress(e.target.value)} placeholder="Type to search (India only)" className="w-full rounded-xl border border-gray-200 bg-white/80 px-3 py-2 text-sm outline-none ring-0 focus:border-blue-500 focus:bg-white shadow-sm" />
+              <label className="text-sm">Address <span className="text-red-600">*</span></label>
+              <input ref={addressRef} value={address} onChange={(e)=>setAddress(e.target.value)} placeholder="Type to search (India only)" className="w-full rounded-xl border border-gray-200 bg-white/80 px-3 py-2 text-sm outline-none ring-0 focus:border-blue-500 focus:bg-white shadow-sm" required />
+              {!addressOk && <p className="text-xs text-red-600 mt-1">Address is required (minimum 3 characters).</p>}
               <p className="text-xs text-gray-500 mt-1">Start typing to see suggestions. Pick one to set coordinates.</p>
             </div>
             <div className="grid grid-cols-2 gap-2">
@@ -336,7 +370,11 @@ export default function ReportModal({ open, onClose }: { open: boolean; onClose:
             {!filesOk && <p className="text-xs text-red-600 mt-1">Check files: max 10, ≤2MB each; JPG/PNG/WebP/GIF only.</p>}
           </div>
 
-          {err && <p className="text-sm text-red-600">{err}</p>}
+          {err && !duplicateModal && (
+            <div className="rounded-xl border bg-red-50 border-red-200 p-3">
+              <p className="text-sm text-red-800">{err}</p>
+            </div>
+          )}
         </div>
       ) : (
         <div className="space-y-3">
@@ -354,5 +392,45 @@ export default function ReportModal({ open, onClose }: { open: boolean; onClose:
         </div>
       )}
     </Modal>
+
+    <DuplicateIssueModal
+      open={!!duplicateModal}
+      existingIssueId={duplicateModal?.issueId || 0}
+      message={duplicateModal?.message || ""}
+      onViewIssue={() => {
+        if (duplicateModal) {
+          const issueId = duplicateModal.issueId;
+          setSavedDuplicateForDetail(duplicateModal);
+          setDuplicateModal(null);
+          setTimeout(() => {
+            setViewIssueId(issueId);
+          }, 100);
+        }
+      }}
+      onProceed={() => {
+        setProceedAnyway(true);
+        setDuplicateModal(null);
+        mut.mutate();
+      }}
+      onCancel={() => {
+        setDuplicateModal(null);
+        setProceedAnyway(false);
+      }}
+    />
+
+    <IssueDetailModal
+      open={!!viewIssueId}
+      issueId={viewIssueId}
+      onClose={() => {
+        setViewIssueId(null);
+        if (savedDuplicateForDetail) {
+          setTimeout(() => {
+            setDuplicateModal(savedDuplicateForDetail);
+            setSavedDuplicateForDetail(null);
+          }, 100);
+        }
+      }}
+    />
+  </>
   );
 }

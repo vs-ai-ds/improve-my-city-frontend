@@ -34,12 +34,14 @@ function ToastProvider({ children }: { children: ReactNode }) {
     <ToastCtx.Provider value={value}>
       {children}
       {createPortal(
-        <div className="fixed inset-0 pointer-events-none z-[100] flex flex-col items-end p-4 gap-2">
+        <div className="fixed inset-0 pointer-events-none z-[9999] flex flex-col items-end p-4 gap-3">
           {toasts.map((t) => (
-            <div key={t.id} className="pointer-events-auto w-full max-w-sm rounded-2xl bg-white/90 backdrop-blur shadow-xl ring-1 ring-black/10 p-3">
-              {t.title && <div className="text-sm font-semibold">{t.title}</div>}
-              <div className="text-sm text-gray-800">{t.message}</div>
-              <div className="mt-2 h-0.5 rounded bg-gradient-to-r from-blue-600 to-indigo-600" style={{ animation: `toastProgress ${t.timeoutMs ?? 3500}ms linear forwards` }} />
+            <div key={t.id} className="pointer-events-auto w-full max-w-md rounded-xl bg-indigo-600 text-white shadow-2xl ring-2 ring-indigo-400 p-4 animate-in slide-in-from-right">
+              {t.title && <div className="text-base font-bold mb-1">{t.title}</div>}
+              <div className="text-base font-medium">{t.message}</div>
+              <div className="mt-3 h-1 rounded-full bg-white/30 overflow-hidden">
+                <div className="h-full bg-white rounded-full" style={{ animation: `toastProgress ${t.timeoutMs ?? 3500}ms linear forwards`, width: "0%" }} />
+              </div>
             </div>
           ))}
         </div>,

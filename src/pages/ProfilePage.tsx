@@ -1,11 +1,13 @@
 // src/pages/ProfilePage.tsx
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../store/useAuth";
-import { updateProfile } from "../services/auth.api"; // adjust if named differently
-import { nameOk, mobileOk } from "../lib/validators"; // add mobileOk below if you don't have it
+import { updateProfile } from "../services/auth.api";
+import { nameOk, mobileOk } from "../lib/validators";
+import { useToast } from "../components/toast/ToastProvider";
 
 export default function ProfilePage() {
   const { user, refreshMe } = useAuth();
+  const toast = useToast();
   const [name, setName] = useState(user?.name ?? "");
   const [mobile, setMobile] = useState(user?.mobile ?? "");
   const [busy, setBusy] = useState(false);
@@ -28,14 +30,21 @@ export default function ProfilePage() {
   }, [name, mobile, user]);
 
   async function save() {
-    if (!dirty || !valid) return;
+    if (!dirty || !valid) {
+      if (!nameOk(name.trim())) {
+        toast.show("Name must be at least 2 characters and contain only letters, spaces, hyphens, or apostrophes");
+      } else if (mobile.trim() && !mobileOk(mobile.trim())) {
+        toast.show("Please enter a valid mobile number");
+      }
+      return;
+    }
     setBusy(true);
     try {
       await updateProfile({ name: name.trim(), mobile: mobile.trim() || null });
       await refreshMe();
-      alert("Profile updated");
-    } catch (e) {
-      alert("Failed to update profile");
+      toast.show("Profile updated successfully");
+    } catch (e: any) {
+      toast.show(e?.response?.data?.detail || "Failed to update profile");
     } finally {
       setBusy(false);
     }

@@ -247,7 +247,7 @@ export default function IssueTypesPage() {
         <div className="flex gap-2 flex-1 max-w-md">
           <input
             value={q} 
-            onChange={(e) => setQ(e.target.value)} 
+            onChange={(e) => setQ(e.target.value)}
             placeholder="Search types..."
             className="flex-1 rounded-xl border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400"
           />
@@ -281,23 +281,24 @@ export default function IssueTypesPage() {
             </div>
             <div className="flex items-center gap-2">
               <label className="text-sm font-medium text-gray-700">Color:</label>
-              <div className="flex gap-1">
+              <select
+                value={color}
+                onChange={(e) => setColor(e.target.value)}
+                className="rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              >
                 {COLOR_PRESETS.map((c) => (
-                  <button
-                    key={c}
-                    type="button"
-                    onClick={() => setColor(c)}
-                    className={`w-8 h-8 rounded border-2 ${color === c ? 'border-gray-800 scale-110' : 'border-gray-300'}`}
-                    style={{ backgroundColor: c }}
-                    title={c}
-                  />
+                  <option key={c} value={c} style={{ backgroundColor: c }}>
+                    {c}
+                  </option>
                 ))}
-              </div>
+              </select>
+              <div className="w-8 h-8 rounded border-2 border-gray-300" style={{ backgroundColor: color }} title={color} />
               <input
                 type="color"
                 value={color}
                 onChange={(e) => setColor(e.target.value)}
                 className="w-10 h-8 rounded border border-gray-300 cursor-pointer"
+                title="Custom color"
               />
             </div>
           </div>

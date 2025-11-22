@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Input from "../../components/ui/Input";
 import Button from "../../components/ui/Button";
-import { listUsers, createUser, updateUser, deleteUser, triggerPasswordReset, getUserStats, bulkUserOperation } from "../../services/admin.users.api";
+import { listUsers, createUser, updateUser, deleteUser, triggerPasswordReset, getUserStats } from "../../services/admin.users.api";
 import { exportToCSV } from "../../utils/issueUtils";
 import { api } from "../../services/apiClient";
 import { useAuth } from "../../store/useAuth";
@@ -10,6 +10,19 @@ import { useToast } from "../../components/toast/ToastProvider";
 import Modal from "../../components/ui/Modal";
 import ConfirmDialog from "../../components/ui/ConfirmDialog";
 import Pagination from "../../components/ui/Pagination";
+
+function UserRegionsDisplay({ regions }: { regions: string[] }) {
+  if (!regions || regions.length === 0) {
+    return <span className="text-gray-400 text-xs">None</span>;
+  }
+  
+  return (
+    <div className="text-xs">
+      <div className="font-medium text-gray-700">{regions.length} region{regions.length !== 1 ? "s" : ""}</div>
+      <div className="text-gray-500 font-mono mt-0.5">{regions.slice(0, 2).join(", ")}{regions.length > 2 ? ` +${regions.length - 2}` : ""}</div>
+    </div>
+  );
+}
 
 export default function AdminUsersPage() {
   const { user: currentUser } = useAuth();
@@ -25,11 +38,11 @@ export default function AdminUsersPage() {
   
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState("citizen");
+  const [role, setRole] = useState("staff");
+  const [region, setRegion] = useState("");
   const [regionsModal, setRegionsModal] = useState<{ userId: number; userName: string } | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: number; name: string } | null>(null);
   const [profileModalId, setProfileModalId] = useState<number | null>(null);
-  const [selectedUsers, setSelectedUsers] = useState<Set<number>>(new Set());
   const [sortBy, setSortBy] = useState<"created_at" | "last_login" | "name" | "email">("created_at");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
@@ -113,11 +126,12 @@ export default function AdminUsersPage() {
   });
 
   const mutCreate = useMutation({
-    mutationFn: () => createUser({ name: name.trim(), email: email.trim().toLowerCase(), role }),
+    mutationFn: () => createUser({ name: name.trim(), email: email.trim().toLowerCase(), role, region: region || undefined }),
     onSuccess: () => {
       setName("");
       setEmail("");
-      setRole("citizen");
+      setRole("staff");
+      setRegion("");
       qc.invalidateQueries({ queryKey: ["admin-users"] });
       toast.show("User created successfully");
     },
@@ -159,11 +173,20 @@ export default function AdminUsersPage() {
     mutUpdate.mutate({ id: u.id, body: { role: newRole } });
   };
 
-  const addRegion = async (stateCode: string) => {
-    if (!regionsModal) return;
+  const [selectedRegionToAdd, setSelectedRegionToAdd] = useState("");
+  
+  const addRegion = async () => {
+    if (!regionsModal || !selectedRegionToAdd) return;
+    const existingRegions = (userRegions || []).map((r: any) => r.state_code);
+    if (existingRegions.includes(selectedRegionToAdd)) {
+      toast.show("Region already assigned");
+      return;
+    }
     try {
-      await api.post(`/admin/regions/${regionsModal.userId}`, { state_code: stateCode });
+      await api.post(`/admin/regions/${regionsModal.userId}`, { state_code: selectedRegionToAdd });
       qc.invalidateQueries({ queryKey: ["user-regions", regionsModal.userId] });
+      qc.invalidateQueries({ queryKey: ["admin-users"] });
+      setSelectedRegionToAdd("");
       toast.show("Region added");
     } catch (e: any) {
       toast.show(e?.response?.data?.detail || "Failed to add region");
@@ -191,41 +214,6 @@ export default function AdminUsersPage() {
     return false;
   };
 
-  const toggleUserSelection = (userId: number) => {
-    setSelectedUsers(prev => {
-      const next = new Set(prev);
-      if (next.has(userId)) {
-        next.delete(userId);
-      } else {
-        next.add(userId);
-      }
-      return next;
-    });
-  };
-
-  const toggleSelectAll = () => {
-    const currentList = activeTab === "staff" ? staffAndAdmins : citizens;
-    if (selectedUsers.size === currentList.length) {
-      setSelectedUsers(new Set());
-    } else {
-      setSelectedUsers(new Set(currentList.map((u: any) => u.id)));
-    }
-  };
-
-  const handleBulkAction = async (operation: string) => {
-    if (selectedUsers.size === 0) {
-      toast.show("Please select at least one user");
-      return;
-    }
-    try {
-      const result = await bulkUserOperation({ user_ids: Array.from(selectedUsers), operation });
-      toast.show(`Bulk operation completed: ${result.updated_count} user(s) updated`);
-      setSelectedUsers(new Set());
-      qc.invalidateQueries({ queryKey: ["admin-users"] });
-    } catch (e: any) {
-      toast.show(e?.response?.data?.detail || "Bulk operation failed");
-    }
-  };
 
   const handlePasswordReset = async (userId: number) => {
     try {
@@ -302,61 +290,73 @@ export default function AdminUsersPage() {
         </button>
       </div>
 
-      <div className="rounded-2xl border bg-white p-5 shadow-lg space-y-4">
-        <h3 className="text-lg font-semibold text-gray-800">Create New User</h3>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-          <Input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Full name"
-          />
-          <Input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="user@example.com"
-          />
-          <select
-            className="rounded-xl border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400"
-            value={role}
-            onChange={(e) => setRole(e.target.value)}
-          >
-            <option value="citizen">Citizen</option>
-            <option value="staff">Staff</option>
-            {currentUser?.role === "super_admin" && (
-              <>
+      {activeTab === "staff" && (
+        <div className="rounded-2xl border bg-white p-5 shadow-lg space-y-4">
+          <h3 className="text-lg font-semibold text-gray-800">Create New Staff/Admin</h3>
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+            <Input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Full name"
+            />
+            <Input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="user@example.com"
+            />
+            <select
+              className="rounded-xl border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              value={role}
+              onChange={(e) => setRole(e.target.value)}
+            >
+              <option value="staff">Staff</option>
+              {currentUser?.role === "super_admin" && (
                 <option value="admin">Admin</option>
-                <option value="super_admin">Super Admin</option>
-              </>
-            )}
-          </select>
-          <Button
-            onClick={() => mutCreate.mutate()}
-            disabled={mutCreate.isPending || name.trim().length < 2 || !email.includes("@")}
-          >
-            {mutCreate.isPending ? "Creating…" : "Create User"}
-          </Button>
+              )}
+            </select>
+            <select
+              className="rounded-xl border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              value={region}
+              onChange={(e) => setRegion(e.target.value)}
+            >
+              <option value="">Select Region (Optional)</option>
+              {(stateCodesData || []).map((sc: string) => (
+                <option key={sc} value={sc}>{sc}</option>
+              ))}
+            </select>
+            <Button
+              onClick={() => mutCreate.mutate()}
+              disabled={mutCreate.isPending || name.trim().length < 2 || !email.includes("@")}
+            >
+              {mutCreate.isPending ? "Creating…" : "Create User"}
+            </Button>
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="rounded-2xl border bg-white p-5 shadow-lg space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
           <Input
             value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
             placeholder="Search name or email"
           />
-          <select
-            value={roleFilter}
-            onChange={(e) => { setRoleFilter(e.target.value); setPage(1); }}
-            className="rounded-xl border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400"
-          >
-            <option value="">All Roles</option>
-            <option value="citizen">Citizen</option>
-            <option value="staff">Staff</option>
-            <option value="admin">Admin</option>
-            <option value="super_admin">Super Admin</option>
-          </select>
+          {activeTab === "staff" && (
+            <select
+              value={roleFilter}
+              onChange={(e) => { setRoleFilter(e.target.value); setPage(1); }}
+              className="rounded-xl border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            >
+              <option value="">All Roles</option>
+              <option value="staff">Staff</option>
+              <option value="admin">Admin</option>
+              <option value="super_admin">Super Admin</option>
+            </select>
+          )}
           <select
             value={statusFilter}
             onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
@@ -405,115 +405,61 @@ export default function AdminUsersPage() {
         </div>
       </div>
 
-      {selectedUsers.size > 0 && (
-        <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 flex items-center justify-between">
-          <div className="text-sm font-medium text-indigo-900">
-            {selectedUsers.size} user{selectedUsers.size !== 1 ? "s" : ""} selected
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => handleBulkAction("activate")}
-              className="px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700"
-            >
-              Activate
-            </button>
-            <button
-              onClick={() => handleBulkAction("deactivate")}
-              className="px-3 py-1.5 rounded-lg bg-gray-600 text-white text-sm font-medium hover:bg-gray-700"
-            >
-              Deactivate
-            </button>
-            {activeTab === "citizens" && (
-              <button
-                onClick={() => {
-                  if (confirm(`Are you sure you want to delete ${selectedUsers.size} user(s)?`)) {
-                    handleBulkAction("delete");
-                  }
-                }}
-                className="px-3 py-1.5 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700"
-              >
-                Delete
-              </button>
-            )}
-            <button
-              onClick={() => setSelectedUsers(new Set())}
-              className="px-3 py-1.5 rounded-lg bg-gray-200 text-gray-700 text-sm font-medium hover:bg-gray-300"
-            >
-              Clear
-            </button>
-          </div>
-        </div>
-      )}
-
       <div className="rounded-2xl border bg-white shadow-lg overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
               <tr>
-                <th className="text-left p-3 font-semibold text-gray-700">
-                  <input
-                    type="checkbox"
-                    checked={selectedUsers.size === (activeTab === "staff" ? staffAndAdmins : citizens).length && (activeTab === "staff" ? staffAndAdmins : citizens).length > 0}
-                    onChange={toggleSelectAll}
-                    className="rounded border-gray-300"
-                  />
-                </th>
-                <th className="text-left p-3 font-semibold text-gray-700">Name</th>
-                <th className="text-left p-3 font-semibold text-gray-700">Email</th>
-                <th className="text-left p-3 font-semibold text-gray-700">Role</th>
-                <th className="text-left p-3 font-semibold text-gray-700">Active</th>
-                <th className="text-left p-3 font-semibold text-gray-700">Verified</th>
-                {activeTab === "staff" && <th className="text-left p-3 font-semibold text-gray-700">Regions</th>}
-                <th className="text-left p-3 font-semibold text-gray-700">Created</th>
-                <th className="text-left p-3 font-semibold text-gray-700">Last Login</th>
-                <th className="text-left p-3 font-semibold text-gray-700">Actions</th>
+                <th className="text-left p-3 font-semibold text-gray-700 align-top">Name</th>
+                <th className="text-left p-3 font-semibold text-gray-700 align-top">Email</th>
+                {activeTab === "staff" && <th className="text-left p-3 font-semibold text-gray-700 align-top">Role</th>}
+                <th className="text-left p-3 font-semibold text-gray-700 align-top">Active</th>
+                <th className="text-left p-3 font-semibold text-gray-700 align-top">Verified</th>
+                {activeTab === "staff" && <th className="text-left p-3 font-semibold text-gray-700 align-top">Regions</th>}
+                <th className="text-left p-3 font-semibold text-gray-700 align-top">Created</th>
+                <th className="text-left p-3 font-semibold text-gray-700 align-top">Last Login</th>
+                <th className="text-left p-3 font-semibold text-gray-700 align-top">Actions</th>
               </tr>
             </thead>
             <tbody>
               {(activeTab === "staff" ? staffAndAdmins : citizens).slice((page - 1) * pageSize, page * pageSize).length > 0 ? 
                 (activeTab === "staff" ? staffAndAdmins : citizens).slice((page - 1) * pageSize, page * pageSize).map((u: any) => (
                 <tr key={u.id} className="odd:bg-white even:bg-gray-50 hover:bg-indigo-50 transition-colors">
-                  <td className="p-3">
-                    <input
-                      type="checkbox"
-                      checked={selectedUsers.has(u.id)}
-                      onChange={() => toggleUserSelection(u.id)}
-                      className="rounded border-gray-300"
-                    />
-                  </td>
-                  <td className="p-3 font-medium">
+                  <td className="p-3 align-top">
                     <button
                       onClick={() => setProfileModalId(u.id)}
-                      className="hover:text-indigo-600 hover:underline"
+                      className="hover:text-indigo-600 hover:underline font-medium"
                     >
                       {u.name || "—"}
                     </button>
                   </td>
-                  <td className="p-3">{u.email}</td>
-                  <td className="p-3">
-                    {canModifyUser(u) ? (
-                      <select
-                        value={u.role}
-                        onChange={(e) => handleRoleChange(u, e.target.value)}
-                        className={`rounded-lg border px-2 py-1 text-xs font-medium ${roleBadges[u.role] || ""}`}
-                        disabled={u.role === "super_admin" && currentUser?.role !== "super_admin"}
-                      >
-                        <option value="citizen">Citizen</option>
-                        <option value="staff">Staff</option>
-                        {currentUser?.role === "super_admin" && (
-                          <>
+                  <td className="p-3 align-top">{u.email}</td>
+                  {activeTab === "staff" && (
+                    <td className="p-3 align-top">
+                      {canModifyUser(u) && u.role !== "super_admin" ? (
+                        <select
+                          value={u.role}
+                          onChange={(e) => {
+                            const newRole = e.target.value;
+                            if (newRole === "staff" || newRole === "admin") {
+                              handleRoleChange(u, newRole);
+                            }
+                          }}
+                          className={`rounded-lg border px-2 py-1 text-xs font-medium ${roleBadges[u.role] || ""}`}
+                        >
+                          <option value="staff">Staff</option>
+                          {currentUser?.role === "super_admin" && (
                             <option value="admin">Admin</option>
-                            {u.role === "super_admin" && <option value="super_admin">Super Admin</option>}
-                          </>
-                        )}
-                      </select>
-                    ) : (
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${roleBadges[u.role] || ""}`}>
-                        {u.role.replace("_", " ")}
-                      </span>
-                    )}
-                  </td>
-                  <td className="p-3">
+                          )}
+                        </select>
+                      ) : (
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${roleBadges[u.role] || ""}`}>
+                          {u.role.replace("_", " ")}
+                        </span>
+                      )}
+                    </td>
+                  )}
+                  <td className="p-3 align-top">
                     {canModifyUser(u) ? (
                       <label className="flex items-center gap-2 cursor-pointer">
                         <input
@@ -532,7 +478,7 @@ export default function AdminUsersPage() {
                       </span>
                     )}
                   </td>
-                  <td className="p-3">
+                  <td className="p-3 align-top">
                     {u.is_verified ? (
                       <span className="text-green-600 flex items-center gap-1">
                         <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
@@ -550,52 +496,95 @@ export default function AdminUsersPage() {
                     )}
                   </td>
                   {activeTab === "staff" && (
-                    <td className="p-3">
+                    <td className="p-3 align-top">
                       {["staff", "admin", "super_admin"].includes(u.role) ? (
-                        <button
-                          onClick={() => setRegionsModal({ userId: u.id, userName: u.name || u.email })}
-                          className="text-indigo-600 hover:text-indigo-800 text-xs font-medium hover:underline"
-                        >
-                          {userRegions?.length || 0} region{(userRegions?.length || 0) !== 1 ? "s" : ""}
-                        </button>
+                        <div className="flex items-start gap-2">
+                          <UserRegionsDisplay regions={u.regions || []} />
+                          <button
+                            onClick={() => setRegionsModal({ userId: u.id, userName: u.name || u.email })}
+                            className="text-indigo-600 hover:text-indigo-800 text-xs font-medium hover:underline ml-2"
+                          >
+                            Manage
+                          </button>
+                        </div>
                       ) : (
                         <span className="text-gray-400">—</span>
                       )}
                     </td>
                   )}
-                  <td className="p-3 text-xs text-gray-600">
-                    {u.created_at ? new Date(u.created_at).toLocaleDateString() : "—"}
+                  <td className="p-3 text-xs text-gray-600 align-top">
+                    {u.created_at ? (() => {
+                      try {
+                        const date = new Date(u.created_at);
+                        if (isNaN(date.getTime())) {
+                          return <span className="text-gray-400">Invalid date</span>;
+                        }
+                        return (
+                          <div>
+                            <div>{date.toLocaleDateString()}</div>
+                            <div className="text-gray-400">{date.toLocaleTimeString()}</div>
+                          </div>
+                        );
+                      } catch (e) {
+                        return <span className="text-gray-400">—</span>;
+                      }
+                    })() : (
+                      u.id ? "—" : ""
+                    )}
                   </td>
-                  <td className="p-3 text-xs text-gray-600">
-                    {u.last_login ? new Date(u.last_login).toLocaleDateString() : "Never"}
+                  <td className="p-3 text-xs text-gray-600 align-top">
+                    {u.last_login ? (() => {
+                      try {
+                        const date = new Date(u.last_login);
+                        if (isNaN(date.getTime())) {
+                          return <span className="text-gray-400">Never</span>;
+                        }
+                        return (
+                          <div>
+                            <div>{date.toLocaleDateString()}</div>
+                            <div className="text-gray-400">{date.toLocaleTimeString()}</div>
+                          </div>
+                        );
+                      } catch (e) {
+                        return <span className="text-gray-400">Never</span>;
+                      }
+                    })() : (
+                      "Never"
+                    )}
                   </td>
-                  <td className="p-3">
-                    <div className="flex items-center gap-2">
-                      {canModifyUser(u) && (
-                        <>
+                  <td className="p-3 align-top">
+                    {canModifyUser(u) && (
+                      <div className="flex flex-col gap-1">
+                        <button
+                          onClick={() => handlePasswordReset(u.id)}
+                          className="text-indigo-600 hover:text-indigo-800 text-xs font-medium hover:underline text-left"
+                          title="Send password reset email"
+                        >
+                          Reset Password
+                        </button>
+                        {u.role !== "super_admin" && (activeTab === "citizens" ? (
                           <button
-                            onClick={() => handlePasswordReset(u.id)}
-                            className="text-indigo-600 hover:text-indigo-800 text-xs font-medium hover:underline"
-                            title="Send password reset email"
+                            onClick={() => toggleActive(u)}
+                            className="text-amber-600 hover:text-amber-800 text-xs font-medium hover:underline text-left"
+                            title={u.is_active ? "Deactivate user" : "Activate user"}
                           >
-                            Reset Password
+                            {u.is_active ? "Deactivate" : "Activate"}
                           </button>
-                          {u.role !== "super_admin" && (
-                            <button
-                              onClick={() => setDeleteConfirm({ id: u.id, name: u.name || u.email })}
-                              className="text-red-600 hover:text-red-800 text-xs font-medium hover:underline"
-                            >
-                              Delete
-                            </button>
-                          )}
-                        </>
-                      )}
-                    </div>
+                        ) : (
+                          <button
+                            onClick={() => setDeleteConfirm({ id: u.id, name: u.name || u.email })}
+                            className="text-red-600 hover:text-red-800 text-xs font-medium hover:underline text-left"
+                          >
+                            Delete
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </td>
                 </tr>
               )) : (
                 <tr>
-                  <td colSpan={activeTab === "staff" ? 10 : 9} className="p-8 text-center text-gray-500">
+                  <td colSpan={activeTab === "staff" ? 9 : 8} className="p-8 text-center text-gray-500">
                     No {activeTab === "staff" ? "staff/admins" : "citizens"} found. {search && "Try adjusting your filters."}
                   </td>
                 </tr>
@@ -619,7 +608,10 @@ export default function AdminUsersPage() {
 
       <Modal
         open={!!regionsModal}
-        onClose={() => setRegionsModal(null)}
+        onClose={() => {
+          setRegionsModal(null);
+          setSelectedRegionToAdd("");
+        }}
         title={`Manage Regions: ${regionsModal?.userName}`}
       >
         <div className="p-4 space-y-4">
@@ -630,18 +622,23 @@ export default function AdminUsersPage() {
             <div className="flex gap-2">
               <select
                 className="flex-1 rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                onChange={(e) => {
-                  if (e.target.value) {
-                    addRegion(e.target.value);
-                    e.target.value = "";
-                  }
-                }}
+                value={selectedRegionToAdd}
+                onChange={(e) => setSelectedRegionToAdd(e.target.value)}
               >
                 <option value="">Select state code...</option>
-                {(stateCodesData || []).map((sc: string) => (
+                {(stateCodesData || []).filter((sc: string) => {
+                  const existingRegions = (userRegions || []).map((r: any) => r.state_code);
+                  return !existingRegions.includes(sc);
+                }).map((sc: string) => (
                   <option key={sc} value={sc}>{sc}</option>
                 ))}
               </select>
+              <Button
+                onClick={addRegion}
+                disabled={!selectedRegionToAdd}
+              >
+                Add
+              </Button>
             </div>
           </div>
           

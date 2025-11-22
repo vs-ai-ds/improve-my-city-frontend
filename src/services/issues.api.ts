@@ -43,10 +43,17 @@ export async function listIssues(params: Record<string, any>) {
   if (queryParams.status && queryParams.status === "all") {
     delete queryParams.status;
   }
-  if (queryParams.myIssuesOnly !== undefined) {
-    queryParams.mine_only = queryParams.myIssuesOnly ? 1 : 0;
-    delete queryParams.myIssuesOnly;
+  if (queryParams.quickFilter === "mine_only") {
+    queryParams.mine_only = 1;
   }
+  if (queryParams.quickFilter === "overdue") {
+    queryParams.overdue = 1;
+  }
+  if (queryParams.quickFilter === "needs_attention") {
+    queryParams.needs_attention = 1;
+  }
+  delete queryParams.quickFilter;
+
   if (queryParams.search) {
     queryParams.search = queryParams.search;
   }

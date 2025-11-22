@@ -63,8 +63,9 @@ This project was created as part of **HackArena 2025, hosted by Masaiverse × No
 - **Rich Issue Reports**: Title, description, category selection, and multiple photo uploads
 - **Interactive Map Integration**: Google Maps picker for precise location selection
 - **Address Auto-detection**: Automatic address resolution from coordinates
-- **Duplicate Detection**: Smart detection of similar issues within 50m radius
+- **Duplicate Detection**: Smart detection of similar issues (same category + location within 50m) with confirmation modal
 - **Anonymous Reporting**: Optional anonymous issue submission (configurable)
+- **Comprehensive Validations**: Title (3-200 chars), description (1-1000 chars), address, location (India only), file size/type limits
 
 #### Issue Tracking & Engagement
 - **Real-time Status Updates**: Track issue status (Pending → In Progress → Resolved)
@@ -76,10 +77,11 @@ This project was created as part of **HackArena 2025, hosted by Masaiverse × No
 
 #### User Experience
 - **Modern Responsive UI**: Mobile-first design with TailwindCSS
-- **Smart Chatbot**: AI-powered chatbot for common queries and issue tracking
+- **Smart Chatbot**: AI-powered chatbot for common queries, issue tracking, and status checking by issue number
 - **Advanced Filtering**: Filter by status, category, region, date range, and search
-- **Interactive Charts**: Visual analytics with pie charts and bar charts
+- **Interactive Charts**: Visual analytics with pie charts and bar charts (with percentage tooltips)
 - **Recent Activity Feed**: Rotating display of recent issue updates
+- **Toast Notifications**: Prominent, non-intrusive notifications for user actions
 
 ### 🛡️ Admin & Staff Features
 
@@ -527,5 +529,21 @@ This project is licensed under the MIT License. See the `LICENSE` file for detai
 For issues, questions, or contributions, please open an issue on GitHub.
 
 ---
+
+## 🔒 Security & Code Quality
+
+### Recent Improvements (December 2025)
+- ✅ Removed unused code and constants
+- ✅ Fixed duplicate issue modal flow with proper z-index layering
+- ✅ Enhanced report issue flow with comprehensive validations
+- ✅ Improved duplicate detection UX with confirmation modal
+- ✅ Fixed report icon positioning (left side for mobile)
+- ✅ Enhanced error handling and user feedback
+- ✅ Improved modal state management for nested modals
+- ✅ Added percentage display to dashboard chart tooltips
+- ✅ Enhanced chatbot with issue status checking and number input
+- ✅ Fixed report modal to stay open when duplicate is detected
+- ✅ Improved chat flow for "Show my issues" and "Report An Issue"
+
 
 **Last Updated:** November 2025

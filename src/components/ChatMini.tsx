@@ -30,6 +30,7 @@ export default function ChatMini() {
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [typing, setTyping] = useState(false);
   const [sessionId] = useState(getSessionId());
+  const [expectingIssueId, setExpectingIssueId] = useState(false);
   const { user } = useAuth();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -44,7 +45,9 @@ export default function ChatMini() {
         "How do I report an issue?",
         "Check status of an issue",
         "Show my issues",
-        "What do statuses mean?"
+        "What do statuses mean?",
+        "Report An Issue",
+        "View issue by number"
       ];
 
       setMessages([{ role: "bot", text: greeting, ts: Date.now() }]);
@@ -65,18 +68,34 @@ export default function ChatMini() {
   const sendMessage = async (text: string) => {
     if (!text.trim() || typing) return;
 
-    const userMsg: Message = { role: "user", text: text.trim(), ts: Date.now() };
+    const userInput = text.trim();
+    const userMsg: Message = { role: "user", text: userInput, ts: Date.now() };
     setMessages(prev => [...prev, userMsg]);
     setInput("");
     setSuggestions([]);
     setTyping(true);
+    
+    // If expecting issue ID and input contains a number, extract it and open modal
+    if (expectingIssueId) {
+      const issueMatch = userInput.match(/#?(\d+)/);
+      if (issueMatch) {
+        const issueId = parseInt(issueMatch[1]);
+        setExpectingIssueId(false);
+        // Still send to API for bot response, but also open modal
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent("imc:open-issue-detail", { 
+            detail: { issueId } 
+          }));
+        }, 500);
+      }
+    }
 
     try {
       const typingDelay = setTimeout(() => setTyping(true), 400);
       
       const { data } = await api.post<ChatResponse>("/bot/chat", {
         session_id: sessionId,
-        message: text.trim(),
+        message: userInput,
         user: user ? { id: user.id, email: user.email } : null
       });
 
@@ -87,6 +106,35 @@ export default function ChatMini() {
       const botMsg: Message = { role: "bot", text: data.reply, ts: Date.now() };
       setMessages(prev => [...prev, botMsg]);
       setSuggestions(data.suggestions || []);
+      
+      // Track if bot is expecting issue ID
+      if (data.state?.expecting_issue_id) {
+        setExpectingIssueId(true);
+      } else {
+        setExpectingIssueId(false);
+      }
+      
+      // Handle actions from bot response
+      if (data.state?.action === "open_login") {
+        window.dispatchEvent(new CustomEvent("imc:open-auth", { 
+          detail: { view: "login", openReportAfterAuth: data.state?.open_report_after_auth || false } 
+        }));
+      } else if (data.state?.action === "open_report") {
+        if (user) {
+          window.dispatchEvent(new CustomEvent("imc:open-report"));
+        } else {
+          window.dispatchEvent(new CustomEvent("imc:open-auth", { 
+            detail: { view: "login", openReportAfterAuth: true } 
+          }));
+        }
+      } else if (data.state?.action === "view_issue" && data.state?.issue_id) {
+        const issueId = data.state.issue_id;
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent("imc:open-issue-detail", { 
+            detail: { issueId } 
+          }));
+        }, 300);
+      }
     } catch (error: any) {
       const errorMsg: Message = {
         role: "bot",
@@ -121,7 +169,7 @@ export default function ChatMini() {
       <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white p-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <MessageCircle className="w-5 h-5" />
-          <h3 className="font-semibold">PlanPal Assistant</h3>
+          <h3 className="font-semibold">IMC Assistant</h3>
         </div>
         <button
           onClick={() => setOpen(false)}

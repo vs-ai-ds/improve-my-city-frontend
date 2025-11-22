@@ -19,7 +19,7 @@ export default function Modal({
 }>) {
   if (!open) return null;
   return createPortal(
-    <div className="fixed inset-0 z-[100]">
+    <div className="fixed inset-0 z-[200]">
       {/* backdrop */}
       <div
         className="absolute inset-0 bg-black/40 backdrop-blur-sm"

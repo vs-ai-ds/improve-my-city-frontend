@@ -10,7 +10,7 @@ export async function listUsers(params?: {
   return data;
 }
 
-export async function createUser(body: { name: string; email: string; role: string }) {
+export async function createUser(body: { name: string; email: string; role: string; region?: string }) {
   const { data } = await api.post("/admin/users", body);
   return data;
 }

@@ -40,7 +40,7 @@ export default function ReportFab() {
     <>
       <button
         onClick={openFlow}
-        className="fixed bottom-5 right-5 z-40 rounded-full bg-blue-600 text-white shadow-xl px-4 py-3 text-sm md:hidden"
+        className="fixed bottom-5 left-4 z-40 rounded-full bg-blue-600 text-white shadow-xl px-4 py-3 text-sm md:hidden"
       >
         + Report
       </button>

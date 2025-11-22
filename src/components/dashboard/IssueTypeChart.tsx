@@ -41,7 +41,7 @@ export default function IssueTypeChart({
   if (!items.length) {
     return (
       <div className="rounded-2xl bg-gradient-to-br from-white to-gray-50 p-6 shadow-lg ring-1 ring-gray-200 text-center">
-        <h3 className="text-lg font-bold text-gray-800 mb-2">Issues by Type</h3>
+        <h3 className="text-lg font-bold text-gray-800 mb-2">Issues by Category</h3>
         <p className="text-sm text-gray-500">No issues yet — you'll see a breakdown by type here.</p>
       </div>
     );
@@ -54,9 +54,9 @@ export default function IssueTypeChart({
           <div>
             <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
               <span className="w-1 h-8 bg-indigo-600 rounded"></span>
-              Issues by Type
+              Issues by Category
             </h3>
-            <p className="text-xs text-gray-500 italic mt-1 ml-5">(Click a bar to filter issues by type)</p>
+            <p className="text-xs text-gray-500 italic mt-1 ml-5">(Click a bar to filter issues by category)</p>
           </div>
           <div className="flex items-center gap-2">
             {selectedCategory && onClearFilter && (
@@ -92,12 +92,12 @@ export default function IssueTypeChart({
         </div>
       </div>
 
-      <div className="h-[400px] sm:h-[550px] md:h-[650px] w-full">
+      <div className="h-[300px] sm:h-[400px] md:h-[500px] w-full">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart 
             data={visibleItems} 
-            margin={{ top: 20, right: 10, left: 40, bottom: 0 }}
-            barCategoryGap="15%"
+            margin={{ top: 10, right: 5, left: 5, bottom: 20 }}
+            barCategoryGap="5%"
           >
             <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" opacity={0.3} />
             <XAxis 
@@ -105,8 +105,8 @@ export default function IssueTypeChart({
               padding={{ left: 0, right: 0 }}
               angle={-45}
               textAnchor="end"
-              height={100}
-              tick={{ fontSize: 12, fill: '#374151', fontWeight: 'bold' }}
+              height={80}
+              tick={{ fontSize: 10, fill: '#374151', fontWeight: 'bold' }}
               interval={0}
             />
             <YAxis 
@@ -124,10 +124,12 @@ export default function IssueTypeChart({
                 fontWeight: 'bold',
                 boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
               }}
-              formatter={(value: number, name: string) => [
-                value, 
-                name === "total" ? "Total" : name.replace("_", " ").replace(/\b\w/g, (l: string) => l.toUpperCase())
-              ]}
+              formatter={(value: number, name: string, props: any) => {
+                const total = props.payload?.total || 0;
+                const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0';
+                const label = name === "total" ? "Total" : name.replace("_", " ").replace(/\b\w/g, (l: string) => l.toUpperCase());
+                return [`${value} (${percentage}%)`, label];
+              }}
             />
             {byTypeStatus && byTypeStatus.length > 0 ? (
               <>

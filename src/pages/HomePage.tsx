@@ -3,7 +3,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useLocation } from "react-router-dom";
+import { useLocation, useSearchParams } from "react-router-dom";
 import { api } from "../services/apiClient";
 import { listIssues } from "../services/issues.api";
 import { getByTypeStatus, getByState, getByStateStatus } from "../services/stats.api";
@@ -22,8 +22,6 @@ import Pagination from "../components/ui/Pagination";
 import SearchableSelect from "../components/ui/SearchableSelect";
 import { getStatusColors } from "../constants/statusColors";
 import { CategoryIcon } from "../utils/categoryIcons";
-
-const USE_DEMO = false;
 
 function prettyDuration(sec?: number) {
   if (!sec || sec < 0) return "—";
@@ -54,6 +52,7 @@ export default function HomePage() {
 
   const { user } = useAuth();
   const { openWith: openReportModal } = useReportModal();
+  const [searchParams, setSearchParams] = useSearchParams();
   
   const location = useLocation();
   useEffect(() => {
@@ -68,6 +67,17 @@ export default function HomePage() {
       window.history.replaceState({}, document.title);
     }
   }, [location.state]);
+
+  useEffect(() => {
+    const issueIdParam = searchParams.get("issue");
+    if (issueIdParam) {
+      const issueId = parseInt(issueIdParam);
+      if (!isNaN(issueId)) {
+        setDetailId(issueId);
+        setSearchParams({}, { replace: true });
+      }
+    }
+  }, [searchParams, setSearchParams]);
 
   useEffect(() => {
     function onAuthSuccess(e: any) {
@@ -175,7 +185,7 @@ export default function HomePage() {
       { name: "in_progress", value: src?.in_progress ?? 0 },
       { name: "resolved", value: src?.resolved ?? 0 },
     ].filter((d) => d.value > 0);
-    if (data.length === 0 && USE_DEMO) {
+    if (false) {
       return [
         { name: "pending", value: 8 },
         { name: "in_progress", value: 5 },
@@ -189,7 +199,7 @@ export default function HomePage() {
     if (Array.isArray(byState) && byState.length > 0) {
       return byState.map((r) => ({ name: r.state_code || "Unknown", count: r.count ?? 0 }));
     }
-    return USE_DEMO
+    return false
       ? [{ name: "MH", count: 6 }, { name: "KA", count: 4 }, { name: "DL", count: 2 }]
       : [];
   }, [byState]);
@@ -225,7 +235,8 @@ export default function HomePage() {
   const activeFilters = useMemo(() => {
     const active: Array<{ key: keyof typeof filters; label: string; value: string }> = [];
     if (filters.status !== "all") {
-      active.push({ key: "status", label: "Status", value: filters.status });
+      const statusLabels: Record<string, string> = { "pending": "Pending", "in_progress": "In Progress", "resolved": "Resolved" };
+      active.push({ key: "status", label: "Status", value: statusLabels[filters.status] || filters.status });
     }
     if (filters.categoryId !== "all") {
       active.push({ key: "categoryId", label: "Category", value: filters.categoryId });
@@ -234,7 +245,7 @@ export default function HomePage() {
       active.push({ key: "regionId", label: "Region", value: filters.regionId });
     }
     if (filters.dateRange !== "30d") {
-      const rangeLabels: Record<string, string> = { "7d": "Last 7 days", "30d": "Last 30 days", "90d": "Last 90 days", "all_time": "All time" };
+      const rangeLabels: Record<string, string> = { "7d": "Last 7 Days", "30d": "Last 30 Days", "90d": "Last 90 Days", "all_time": "All Time" };
       active.push({ key: "dateRange", label: "Date Range", value: rangeLabels[filters.dateRange] || filters.dateRange });
     }
     if (filters.myIssuesOnly) {
@@ -251,6 +262,29 @@ export default function HomePage() {
       document.querySelector("#issues")?.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   }, [filters.status]);
+
+  useEffect(() => {
+    const handleOpenIssue = (e: Event) => {
+      const customEvent = e as CustomEvent<{ id?: number; issueId?: number }>;
+      const issueId = customEvent?.detail?.id || customEvent?.detail?.issueId;
+      if (issueId) {
+        setDetailId(issueId);
+      }
+    };
+    const handleOpenIssueDetail = (e: Event) => {
+      const customEvent = e as CustomEvent<{ issueId?: number }>;
+      const issueId = customEvent?.detail?.issueId;
+      if (issueId) {
+        setDetailId(issueId);
+      }
+    };
+    window.addEventListener("imc:open-issue", handleOpenIssue);
+    window.addEventListener("imc:open-issue-detail", handleOpenIssueDetail);
+    return () => {
+      window.removeEventListener("imc:open-issue", handleOpenIssue);
+      window.removeEventListener("imc:open-issue-detail", handleOpenIssueDetail);
+    };
+  }, []);
 
   const handlePieClick = (pickedStatus: string) => {
     setStatus(pickedStatus as IssueStatusFilter);
@@ -383,38 +417,41 @@ export default function HomePage() {
             </label>
           </div>
 
-          {activeFilters.length > 0 && (
-            <div className="mt-3 flex flex-wrap gap-2">
-              {activeFilters.map((filter) => (
-                <button
-                  key={filter.key}
-                  onClick={() => {
-                    if (filter.key === "dateRange") {
-                      updateFilter("dateRange", "30d");
-                    } else if (filter.key === "myIssuesOnly") {
-                      updateFilter("myIssuesOnly", false);
-                    } else if (filter.key === "search") {
-                      updateFilter("search", "");
-                    } else {
-                      clearFilter(filter.key);
-                    }
-                  }}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-100 hover:bg-indigo-200 text-indigo-700 text-xs font-medium transition-colors"
-                >
-                  <span>{filter.label}: {filter.value}</span>
-                  <span className="text-indigo-500">×</span>
-                </button>
-              ))}
-              {activeFilters.length > 1 && (
-                <button
-                  onClick={clearAllFilters}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-medium transition-colors"
-                >
-                  Clear all
-                </button>
-              )}
+          {activeFilters.length > 0 ? (
+            <div className="mt-3">
+              <div className="text-sm font-semibold text-gray-700 mb-2">Applied Filters:</div>
+              <div className="flex flex-wrap gap-2">
+                {activeFilters.map((filter) => (
+                  <button
+                    key={filter.key}
+                    onClick={() => {
+                      if (filter.key === "dateRange") {
+                        updateFilter("dateRange", "30d");
+                      } else if (filter.key === "myIssuesOnly") {
+                        updateFilter("myIssuesOnly", false);
+                      } else if (filter.key === "search") {
+                        updateFilter("search", "");
+                      } else {
+                        clearFilter(filter.key);
+                      }
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-100 hover:bg-indigo-200 text-indigo-700 text-xs font-medium transition-colors"
+                  >
+                    <span>{filter.label}: {filter.value}</span>
+                    <span className="text-indigo-500">×</span>
+                  </button>
+                ))}
+                {activeFilters.length > 1 && (
+                  <button
+                    onClick={clearAllFilters}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-medium transition-colors"
+                  >
+                    Clear all
+                  </button>
+                )}
+              </div>
             </div>
-          )}
+          ) : null}
 
           <div className="mt-4 overflow-x-auto">
             <IssueTypeChart 

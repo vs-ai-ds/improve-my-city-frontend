@@ -50,7 +50,7 @@ export default function IssuesHeatmap({ range }: { range: string }) {
           }
         }
       } catch (error) {
-        console.error("Failed to load issues for heatmap:", error);
+        // Silently handle error - heatmap is non-critical
       }
     })();
 

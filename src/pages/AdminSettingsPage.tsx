@@ -35,9 +35,6 @@ export default function AdminSettingsPage() {
   const [form, setForm] = useState({
     allow_anonymous_reporting: false,
     require_email_verification: true,
-    admin_open_registration: false,
-    email_from: "",
-    email_from_name: "",
     sla_hours: 48,
     sla_reminder_hours: 24,
     city_logo_url: "",
@@ -59,9 +56,6 @@ export default function AdminSettingsPage() {
       setForm({
         allow_anonymous_reporting: data.allow_anonymous_reporting || false,
         require_email_verification: data.require_email_verification ?? true,
-        admin_open_registration: data.admin_open_registration || false,
-        email_from: data.email_from || "",
-        email_from_name: data.email_from_name || "",
         sla_hours: data.sla_hours || 48,
         sla_reminder_hours: data.sla_reminder_hours || 24,
         city_logo_url: data.city_logo_url || "",
@@ -150,68 +144,6 @@ export default function AdminSettingsPage() {
             </div>
           </div>
         </label>
-      </section>
-
-      {/* Admin Access */}
-      <section className="space-y-4">
-        <h3 className="text-lg font-semibold text-gray-800 border-b pb-2">Admin Access</h3>
-        <label className="flex items-center gap-3 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={form.admin_open_registration}
-            onChange={(e) => setForm({ ...form, admin_open_registration: e.target.checked })}
-            disabled={!isSuperAdmin}
-            className="w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-          />
-          <div>
-            <div className="font-medium text-gray-900">Open admin registration</div>
-            <div className="text-sm text-gray-600">
-              If enabled, anyone can request admin access. Otherwise, only super admins can promote users.
-            </div>
-          </div>
-        </label>
-      </section>
-
-      {/* Email Settings */}
-      <section className="space-y-4">
-        <h3 className="text-lg font-semibold text-gray-800 border-b pb-2">Email Settings</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Sender Name
-            </label>
-            <Input
-              type="text"
-              value={form.email_from_name}
-              onChange={(e) => setForm({ ...form, email_from_name: e.target.value })}
-              placeholder="Improve My City"
-              disabled={!isSuperAdmin}
-              className="w-full"
-            />
-            <p className="mt-1 text-xs text-gray-500">
-              Display name for email sender
-            </p>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Sender Email Address
-            </label>
-            <Input
-              type="email"
-              value={form.email_from}
-              onChange={(e) => setForm({ ...form, email_from: e.target.value })}
-              placeholder="noreply@example.com"
-              disabled={!isSuperAdmin}
-              className="w-full"
-            />
-            <p className="mt-1 text-xs text-gray-500">
-              Email address for sending
-            </p>
-          </div>
-        </div>
-        <p className="text-xs text-gray-500 mt-2">
-          All transactional emails (verification, reset, status updates) will use these settings
-        </p>
       </section>
 
       {/* Notifications */}

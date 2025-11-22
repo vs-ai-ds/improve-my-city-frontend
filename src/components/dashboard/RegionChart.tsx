@@ -90,11 +90,11 @@ export default function RegionChart({
           <p className="text-sm text-gray-500">No issues yet — you'll see a breakdown by region here.</p>
         </div>
       ) : (
-        <div className="h-[400px] sm:h-[550px] md:h-[650px] w-full">
+        <div className="h-[300px] sm:h-[400px] md:h-[500px] w-full">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart 
               data={visibleItems} 
-              margin={{ top: 20, right: 10, left: 40, bottom: 0 }}
+              margin={{ top: 10, right: 5, left: 5, bottom: 0}}
               barCategoryGap="15%"
             >
             <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" opacity={0.3} />
@@ -102,8 +102,8 @@ export default function RegionChart({
               dataKey="name" 
               angle={-45}
               textAnchor="end"
-              height={50}
-              tick={{ fontSize: 12, fill: '#374151', fontWeight: 'bold' }}
+              height={80}
+              tick={{ fontSize: 10, fill: '#374151', fontWeight: 'bold' }}
               interval={0}
             />
             <YAxis 
@@ -121,10 +121,12 @@ export default function RegionChart({
                 fontWeight: 'bold',
                 boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
               }}
-              formatter={(value: number, name: string) => [
-                value, 
-                name === "total" ? "Total" : name.replace("_", " ").replace(/\b\w/g, (l: string) => l.toUpperCase())
-              ]}
+              formatter={(value: number, name: string, props: any) => {
+                const total = props.payload?.total || 0;
+                const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0';
+                const label = name === "total" ? "Total" : name.replace("_", " ").replace(/\b\w/g, (l: string) => l.toUpperCase());
+                return [`${value} (${percentage}%)`, label];
+              }}
             />
             {byStateStatus && byStateStatus.length > 0 ? (
               <>
@@ -220,7 +222,7 @@ export default function RegionChart({
               </Bar>
             )}
             <Legend 
-              wrapperStyle={{ paddingTop: '0px', paddingBottom: '0px', fontWeight: 'bold' , marginBottom: 0, bottom: 5 }}
+              wrapperStyle={{ paddingTop: '0px', paddingBottom: '0px', fontWeight: 'bold' , marginBottom: 0, bottom: 0 }}
               formatter={(value: string) => value.replace("_", " ").replace(/\b\w/g, (l: string) => l.toUpperCase())}
               verticalAlign="bottom"
             />
