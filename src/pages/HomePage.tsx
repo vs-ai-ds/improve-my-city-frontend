@@ -66,6 +66,13 @@ export default function HomePage() {
       }
       window.history.replaceState({}, document.title);
     }
+    if (location.state?.openIssueId) {
+      const issueId = location.state.openIssueId;
+      if (issueId && !isNaN(Number(issueId))) {
+        setDetailId(Number(issueId));
+        window.history.replaceState({}, document.title);
+      }
+    }
   }, [location.state]);
 
   useEffect(() => {
