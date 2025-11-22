@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { api } from "../services/apiClient";
 import { useAuth } from "../store/useAuth";
+import { useReportModal } from "../store/useReportModal";
 import { MessageCircle, X, Send, Loader2 } from "lucide-react";
 
 type Message = {
@@ -30,8 +31,9 @@ export default function ChatMini() {
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [typing, setTyping] = useState(false);
   const [sessionId] = useState(getSessionId());
-  const [expectingIssueId, setExpectingIssueId] = useState(false);
+  const [lastIssueId, setLastIssueId] = useState<number | null>(null);
   const { user } = useAuth();
+  const { openWith: openReportModal } = useReportModal();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -75,20 +77,7 @@ export default function ChatMini() {
     setSuggestions([]);
     setTyping(true);
     
-    // If expecting issue ID and input contains a number, extract it and open modal
-    if (expectingIssueId) {
-      const issueMatch = userInput.match(/#?(\d+)/);
-      if (issueMatch) {
-        const issueId = parseInt(issueMatch[1]);
-        setExpectingIssueId(false);
-        // Still send to API for bot response, but also open modal
-        setTimeout(() => {
-          window.dispatchEvent(new CustomEvent("imc:open-issue-detail", { 
-            detail: { issueId } 
-          }));
-        }, 500);
-      }
-    }
+    // Don't auto-open modals - only open when user clicks specific buttons
 
     try {
       const typingDelay = setTimeout(() => setTyping(true), 400);
@@ -107,34 +96,20 @@ export default function ChatMini() {
       setMessages(prev => [...prev, botMsg]);
       setSuggestions(data.suggestions || []);
       
-      // Track if bot is expecting issue ID
-      if (data.state?.expecting_issue_id) {
-        setExpectingIssueId(true);
+      // Store issue ID if present in response
+      if (data.state?.issue_id) {
+        setLastIssueId(data.state.issue_id);
       } else {
-        setExpectingIssueId(false);
+        // Try to extract from reply text
+        const issueMatch = data.reply.match(/#(\d+)/);
+        if (issueMatch) {
+          setLastIssueId(parseInt(issueMatch[1]));
+        }
       }
       
-      // Handle actions from bot response
-      if (data.state?.action === "open_login") {
-        window.dispatchEvent(new CustomEvent("imc:open-auth", { 
-          detail: { view: "login", openReportAfterAuth: data.state?.open_report_after_auth || false } 
-        }));
-      } else if (data.state?.action === "open_report") {
-        if (user) {
-          window.dispatchEvent(new CustomEvent("imc:open-report"));
-        } else {
-          window.dispatchEvent(new CustomEvent("imc:open-auth", { 
-            detail: { view: "login", openReportAfterAuth: true } 
-          }));
-        }
-      } else if (data.state?.action === "view_issue" && data.state?.issue_id) {
-        const issueId = data.state.issue_id;
-        setTimeout(() => {
-          window.dispatchEvent(new CustomEvent("imc:open-issue-detail", { 
-            detail: { issueId } 
-          }));
-        }, 300);
-      }
+      // Only auto-open modals if explicitly requested (auto_open is true or not set)
+      // But based on user requirements, we should NOT auto-open
+      // Modals will only open when user clicks specific suggestion buttons
     } catch (error: any) {
       const errorMsg: Message = {
         role: "bot",
@@ -149,6 +124,63 @@ export default function ChatMini() {
   };
 
   const handleSuggestion = (suggestion: string) => {
+    // Handle special action buttons
+    if (suggestion === "Login to report an issue") {
+      window.dispatchEvent(new CustomEvent("imc:open-auth", { 
+        detail: { view: "login", openReportAfterAuth: true } 
+      }));
+      return;
+    }
+    
+    if (suggestion === "Report An Issue") {
+      if (user) {
+        openReportModal();
+      } else {
+        window.dispatchEvent(new CustomEvent("imc:open-auth", { 
+          detail: { view: "login", openReportAfterAuth: true } 
+        }));
+      }
+      return;
+    }
+    
+    if (suggestion === "Login") {
+      window.dispatchEvent(new CustomEvent("imc:open-auth", { 
+        detail: { view: "login" } 
+      }));
+      return;
+    }
+    
+    if (suggestion === "View full details") {
+      // Use stored issue ID or extract from last bot message
+      if (lastIssueId) {
+        window.dispatchEvent(new CustomEvent("imc:open-issue-detail", { 
+          detail: { issueId: lastIssueId } 
+        }));
+        return;
+      }
+      // Try to extract from last bot message
+      const lastBotMsg = messages.filter(m => m.role === "bot").pop();
+      if (lastBotMsg) {
+        const issueMatch = lastBotMsg.text.match(/#(\d+)/);
+        if (issueMatch) {
+          const issueId = parseInt(issueMatch[1]);
+          window.dispatchEvent(new CustomEvent("imc:open-issue-detail", { 
+            detail: { issueId } 
+          }));
+          return;
+        }
+      }
+      // If we can't find issue ID, just send the message
+    }
+    
+    if (suggestion === "Open login") {
+      window.dispatchEvent(new CustomEvent("imc:open-auth", { 
+        detail: { view: "login" } 
+      }));
+      return;
+    }
+    
+    // For all other suggestions, send as message
     sendMessage(suggestion);
   };
 

@@ -9,17 +9,20 @@ export default function Modal({
   wide,
   footer,
   children,
+  zIndex,
 }: PropsWithChildren<{
   open: boolean;
   onClose: () => void;
   title?: string;
   wide?: boolean;
+  zIndex?: number;
   /** optional custom footer; if not provided, consumer renders buttons at end of content */
   footer?: React.ReactNode;
 }>) {
   if (!open) return null;
+  const modalZIndex = zIndex || 200;
   return createPortal(
-    <div className="fixed inset-0 z-[200]">
+    <div className="fixed inset-0" style={{ zIndex: modalZIndex }}>
       {/* backdrop */}
       <div
         className="absolute inset-0 bg-black/40 backdrop-blur-sm"

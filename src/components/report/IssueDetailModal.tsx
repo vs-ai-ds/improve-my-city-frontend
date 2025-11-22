@@ -66,6 +66,8 @@ export default function IssueDetailModal({ open, issueId, onClose }: { open: boo
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["issue", issueId] });
       qc.invalidateQueries({ queryKey: ["admin-issues"] });
+      qc.invalidateQueries({ queryKey: ["issues"] });
+      issueQ.refetch();
       setAssignModal(false);
       setAssignSearch("");
       setSelectedAssignUserId(null);
@@ -79,12 +81,12 @@ export default function IssueDetailModal({ open, issueId, onClose }: { open: boo
   const addCommentM = useMutation({
     mutationFn: (body: string) => addIssueComment(issueId as number, { body }),
     onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["issue-comments", issueId] });
       commentsQ.refetch();
-      qc.invalidateQueries({ queryKey: ["issue", issueId] });
       setComment("");
-      toast.show("Comment added");
+      toast.show("Comment added successfully");
     },
-    onError: (e: unknown) => toast.show((e as { response?: { data?: { detail?: string } } })?.response?.data?.detail || "Failed"),
+    onError: (e: unknown) => toast.show((e as { response?: { data?: { detail?: string } } })?.response?.data?.detail || "Failed to add comment"),
   });
 
   const statusM = useMutation({
@@ -94,8 +96,11 @@ export default function IssueDetailModal({ open, issueId, onClose }: { open: boo
       qc.invalidateQueries({ queryKey: ["issue", issueId] });
       qc.invalidateQueries({ queryKey: ["issues"] });
       qc.invalidateQueries({ queryKey: ["issue-comments", issueId] });
+      qc.invalidateQueries({ queryKey: ["admin-issues"] });
+      issueQ.refetch();
+      commentsQ.refetch();
       setStatusChangeModal(null);
-      toast.show("Status updated");
+      toast.show("Status updated successfully");
     },
     onError: (e: unknown) => toast.show((e as { response?: { data?: { detail?: string } } })?.response?.data?.detail || "Status update failed"),
   });
@@ -553,6 +558,7 @@ export default function IssueDetailModal({ open, issueId, onClose }: { open: boo
         open={!!statusChangeModal}
         onClose={() => setStatusChangeModal(null)}
         title={statusChangeModal?.status === "in_progress" ? "Mark as In Progress" : "Resolve Issue"}
+        zIndex={10003}
       >
         <div className="space-y-4">
           <p className="text-sm text-gray-700">
@@ -594,6 +600,7 @@ export default function IssueDetailModal({ open, issueId, onClose }: { open: boo
         onClose={() => setPhotoViewer({ open: false, currentIndex: 0, photos: [] })}
         title={`Photo ${photoViewer.currentIndex + 1} of ${photoViewer.photos.length}`}
         wide
+        zIndex={10003}
       >
         <div className="relative">
           <img
@@ -637,6 +644,7 @@ export default function IssueDetailModal({ open, issueId, onClose }: { open: boo
           setSelectedAssignUserId(null);
         }}
         title="Assign Issue"
+        zIndex={10003}
       >
         <div className="space-y-4 p-4">
           <div>
