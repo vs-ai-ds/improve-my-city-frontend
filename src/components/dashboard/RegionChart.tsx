@@ -134,7 +134,12 @@ export default function RegionChart({
                   dataKey="pending" 
                   stackId="a"
                   fill={STATUS_COLORS.pending.chart}
-                  onClick={(data) => data?.name && onRegionClick?.(data.name)}
+                  onClick={(data: any) => {
+                    const stateCode = data?.payload?.name || data?.name;
+                    if (stateCode && onRegionClick) {
+                      onRegionClick(stateCode);
+                    }
+                  }}
                   style={{ cursor: onRegionClick ? 'pointer' : 'default' }}
                   radius={[0, 0, 0, 0]}
                   barSize={70}
@@ -155,7 +160,12 @@ export default function RegionChart({
                   dataKey="in_progress" 
                   stackId="a"
                   fill={STATUS_COLORS.in_progress.chart}
-                  onClick={(data) => data?.name && onRegionClick?.(data.name)}
+                  onClick={(data: any) => {
+                    const stateCode = data?.payload?.name || data?.name;
+                    if (stateCode && onRegionClick) {
+                      onRegionClick(stateCode);
+                    }
+                  }}
                   style={{ cursor: onRegionClick ? 'pointer' : 'default' }}
                   radius={[0, 0, 0, 0]}
                   barSize={70}
@@ -177,7 +187,12 @@ export default function RegionChart({
                   stackId="a"
                   fill={STATUS_COLORS.resolved.chart}
                   radius={[0, 0, 0, 0]}
-                  onClick={(data) => data?.name && onRegionClick?.(data.name)}
+                  onClick={(data: any) => {
+                    const stateCode = data?.payload?.name || data?.name;
+                    if (stateCode && onRegionClick) {
+                      onRegionClick(stateCode);
+                    }
+                  }}
                   style={{ cursor: onRegionClick ? 'pointer' : 'default' }}
                   barSize={70}
                 >
@@ -207,7 +222,12 @@ export default function RegionChart({
                 dataKey="total" 
                 fill="#10b981"
                 radius={[4, 4, 0, 0]}
-                onClick={(data) => data?.name && onRegionClick?.(data.name)}
+                onClick={(data: any) => {
+                  const stateCode = data?.payload?.name || data?.name;
+                  if (stateCode && onRegionClick) {
+                    onRegionClick(stateCode);
+                  }
+                }}
                 style={{ cursor: onRegionClick ? 'pointer' : 'default' }}
                 barSize={70}
               >

@@ -137,7 +137,12 @@ export default function IssueTypeChart({
                   dataKey="pending" 
                   stackId="a"
                   fill={STATUS_COLORS.pending.chart}
-                  onClick={(data) => data?.name && onTypeClick?.(data.name)}
+                  onClick={(data: any) => {
+                    const categoryName = data?.payload?.name || data?.name;
+                    if (categoryName && onTypeClick) {
+                      onTypeClick(categoryName);
+                    }
+                  }}
                   style={{ cursor: onTypeClick ? 'pointer' : 'default' }}
                   radius={[0, 0, 0, 0]}
                   barSize={70}
@@ -158,7 +163,12 @@ export default function IssueTypeChart({
                   dataKey="in_progress" 
                   stackId="a"
                   fill={STATUS_COLORS.in_progress.chart}
-                  onClick={(data) => data?.name && onTypeClick?.(data.name)}
+                  onClick={(data: any) => {
+                    const categoryName = data?.payload?.name || data?.name;
+                    if (categoryName && onTypeClick) {
+                      onTypeClick(categoryName);
+                    }
+                  }}
                   style={{ cursor: onTypeClick ? 'pointer' : 'default' }}
                   radius={[0, 0, 0, 0]}
                   barSize={70}
@@ -180,7 +190,12 @@ export default function IssueTypeChart({
                   stackId="a"
                   fill={STATUS_COLORS.resolved.chart}
                   radius={[0, 0, 0, 0]}
-                  onClick={(data) => data?.name && onTypeClick?.(data.name)}
+                  onClick={(data: any) => {
+                    const categoryName = data?.payload?.name || data?.name;
+                    if (categoryName && onTypeClick) {
+                      onTypeClick(categoryName);
+                    }
+                  }}
                   style={{ cursor: onTypeClick ? 'pointer' : 'default' }}
                   barSize={70}
                 >
@@ -210,7 +225,12 @@ export default function IssueTypeChart({
                 dataKey="total" 
                 fill="#6366f1"
                 radius={[4, 4, 0, 0]}
-                onClick={(data) => data?.name && onTypeClick?.(data.name)}
+                onClick={(data: any) => {
+                  const categoryName = data?.payload?.name || data?.name;
+                  if (categoryName && onTypeClick) {
+                    onTypeClick(categoryName);
+                  }
+                }}
                 style={{ cursor: onTypeClick ? 'pointer' : 'default' }}
                 barSize={70}
               >

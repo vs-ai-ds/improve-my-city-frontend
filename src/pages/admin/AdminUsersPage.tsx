@@ -158,23 +158,27 @@ export default function AdminUsersPage() {
   });
 
   const toggleActive = (u: any) => {
+    if (currentUser?.id === u.id) {
+      toast.show("Cannot modify yourself");
+      return;
+    }
     mutUpdate.mutate({ id: u.id, body: { is_active: !u.is_active } });
   };
 
   const handleRoleChange = (u: any, newRole: string) => {
-    if (currentUser?.role !== "super_admin" && ["admin", "super_admin"].includes(newRole)) {
-      toast.show("Only super admins can promote to admin/super_admin");
+    if (currentUser?.role !== "super_admin") {
+      toast.show("Only super admins can change roles");
       return;
     }
-    if (u.role === "super_admin" && currentUser?.role !== "super_admin") {
-      toast.show("Only super admins can modify super admin roles");
+    if (currentUser?.id === u.id) {
+      toast.show("Cannot change your own role");
       return;
     }
     mutUpdate.mutate({ id: u.id, body: { role: newRole } });
   };
 
   const [selectedRegionToAdd, setSelectedRegionToAdd] = useState("");
-  
+
   const addRegion = async () => {
     if (!regionsModal || !selectedRegionToAdd) return;
     const existingRegions = (userRegions || []).map((r: any) => r.state_code);
@@ -205,13 +209,38 @@ export default function AdminUsersPage() {
     }
   };
 
-  const canModifyUser = (u: any) => {
+  const canChangeRole = (u: any) => {
     if (!currentUser) return false;
+    if (currentUser.id === u.id) return false;
+    return currentUser.role === "super_admin";
+  };
+
+  const canActivateDeactivate = (u: any) => {
+    if (!currentUser) return false;
+    if (currentUser.id === u.id) return false;
     if (currentUser.role === "super_admin") return true;
     if (currentUser.role === "admin") {
-      return u.role !== "super_admin";
+      return u.role === "staff" || u.role === "citizen";
+    }
+    if (currentUser.role === "staff") {
+      return u.role === "citizen";
     }
     return false;
+  };
+
+  const canDelete = (u: any) => {
+    if (!currentUser) return false;
+    if (currentUser.id === u.id) return false;
+    if (u.role === "super_admin") return false;
+    if (currentUser.role === "super_admin") return true;
+    if (currentUser.role === "admin") {
+      return u.role === "staff" || u.role === "citizen";
+    }
+    return false;
+  };
+
+  const canModifyUser = (u: any) => {
+    return canChangeRole(u) || canActivateDeactivate(u) || canDelete(u);
   };
 
 
@@ -436,7 +465,7 @@ export default function AdminUsersPage() {
                   <td className="p-3 align-top">{u.email}</td>
                   {activeTab === "staff" && (
                     <td className="p-3 align-top">
-                      {canModifyUser(u) && u.role !== "super_admin" ? (
+                      {canChangeRole(u) && u.role !== "super_admin" ? (
                         <select
                           value={u.role}
                           onChange={(e) => {
@@ -460,7 +489,7 @@ export default function AdminUsersPage() {
                     </td>
                   )}
                   <td className="p-3 align-top">
-                    {canModifyUser(u) ? (
+                    {canActivateDeactivate(u) ? (
                       <label className="flex items-center gap-2 cursor-pointer">
                         <input
                           type="checkbox"
@@ -553,16 +582,18 @@ export default function AdminUsersPage() {
                     )}
                   </td>
                   <td className="p-3 align-top">
-                    {canModifyUser(u) && (
+                    {(canModifyUser(u) || canActivateDeactivate(u) || canDelete(u)) && (
                       <div className="flex flex-col gap-1">
-                        <button
-                          onClick={() => handlePasswordReset(u.id)}
-                          className="text-indigo-600 hover:text-indigo-800 text-xs font-medium hover:underline text-left"
-                          title="Send password reset email"
-                        >
-                          Reset Password
-                        </button>
-                        {u.role !== "super_admin" && (activeTab === "citizens" ? (
+                        {(currentUser?.role === "admin" || currentUser?.role === "super_admin" || currentUser?.role === "staff") && (
+                          <button
+                            onClick={() => handlePasswordReset(u.id)}
+                            className="text-indigo-600 hover:text-indigo-800 text-xs font-medium hover:underline text-left"
+                            title="Send password reset email"
+                          >
+                            Reset Password
+                          </button>
+                        )}
+                        {canActivateDeactivate(u) && (
                           <button
                             onClick={() => toggleActive(u)}
                             className="text-amber-600 hover:text-amber-800 text-xs font-medium hover:underline text-left"
@@ -570,14 +601,15 @@ export default function AdminUsersPage() {
                           >
                             {u.is_active ? "Deactivate" : "Activate"}
                           </button>
-                        ) : (
+                        )}
+                        {canDelete(u) && (
                           <button
                             onClick={() => setDeleteConfirm({ id: u.id, name: u.name || u.email })}
                             className="text-red-600 hover:text-red-800 text-xs font-medium hover:underline text-left"
                           >
                             Delete
                           </button>
-                        ))}
+                        )}
                       </div>
                     )}
                   </td>
