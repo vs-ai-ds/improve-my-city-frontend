@@ -489,23 +489,9 @@ export default function AdminUsersPage() {
                     </td>
                   )}
                   <td className="p-3 align-top">
-                    {canActivateDeactivate(u) ? (
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={u.is_active}
-                          onChange={() => toggleActive(u)}
-                          className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                        />
-                        <span className={u.is_active ? "text-green-600" : "text-gray-400"}>
-                          {u.is_active ? "Yes" : "No"}
-                        </span>
-                      </label>
-                    ) : (
-                      <span className={u.is_active ? "text-green-600" : "text-gray-400"}>
-                        {u.is_active ? "Yes" : "No"}
-                      </span>
-                    )}
+                    <span className={u.is_active ? "text-green-600" : "text-gray-400"}>
+                      {u.is_active ? "Yes" : "No"}
+                    </span>
                   </td>
                   <td className="p-3 align-top">
                     {u.is_verified ? (
@@ -582,36 +568,34 @@ export default function AdminUsersPage() {
                     )}
                   </td>
                   <td className="p-3 align-top">
-                    {(canModifyUser(u) || canActivateDeactivate(u) || canDelete(u)) && (
-                      <div className="flex flex-col gap-1">
-                        {(currentUser?.role === "admin" || currentUser?.role === "super_admin" || currentUser?.role === "staff") && (
-                          <button
-                            onClick={() => handlePasswordReset(u.id)}
-                            className="text-indigo-600 hover:text-indigo-800 text-xs font-medium hover:underline text-left"
-                            title="Send password reset email"
-                          >
-                            Reset Password
-                          </button>
-                        )}
-                        {canActivateDeactivate(u) && (
-                          <button
-                            onClick={() => toggleActive(u)}
-                            className="text-amber-600 hover:text-amber-800 text-xs font-medium hover:underline text-left"
-                            title={u.is_active ? "Deactivate user" : "Activate user"}
-                          >
-                            {u.is_active ? "Deactivate" : "Activate"}
-                          </button>
-                        )}
-                        {canDelete(u) && (
-                          <button
-                            onClick={() => setDeleteConfirm({ id: u.id, name: u.name || u.email })}
-                            className="text-red-600 hover:text-red-800 text-xs font-medium hover:underline text-left"
-                          >
-                            Delete
-                          </button>
-                        )}
-                      </div>
-                    )}
+                    <div className="flex flex-col gap-1">
+                      {(currentUser?.role === "admin" || currentUser?.role === "super_admin" || currentUser?.role === "staff" || currentUser?.id === u.id) && (
+                        <button
+                          onClick={() => handlePasswordReset(u.id)}
+                          className="text-indigo-600 hover:text-indigo-800 text-xs font-medium hover:underline text-left"
+                          title="Send password reset email"
+                        >
+                          Reset Password
+                        </button>
+                      )}
+                      {canActivateDeactivate(u) && (
+                        <button
+                          onClick={() => toggleActive(u)}
+                          className="text-amber-600 hover:text-amber-800 text-xs font-medium hover:underline text-left"
+                          title={u.is_active ? "Deactivate user" : "Activate user"}
+                        >
+                          {u.is_active ? "Deactivate" : "Activate"}
+                        </button>
+                      )}
+                      {canDelete(u) && (
+                        <button
+                          onClick={() => setDeleteConfirm({ id: u.id, name: u.name || u.email })}
+                          className="text-red-600 hover:text-red-800 text-xs font-medium hover:underline text-left"
+                        >
+                          Delete
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               )) : (

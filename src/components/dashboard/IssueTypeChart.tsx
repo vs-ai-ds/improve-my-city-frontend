@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import type { RangeKey } from "../../services/stats.api";
 import type { IssueFilters } from "../../hooks/useIssueFilters";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend, LabelList } from "recharts";
@@ -33,6 +33,10 @@ export default function IssueTypeChart({
   const [scrollIndex, setScrollIndex] = useState(0);
   const itemsPerPage = 5;
   const maxScroll = Math.max(0, items.length - itemsPerPage);
+
+  useEffect(() => {
+    setScrollIndex(0);
+  }, [selectedCategory, byTypeStatus]);
 
   const visibleItems = useMemo(() => {
     return items.slice(scrollIndex, scrollIndex + itemsPerPage);
