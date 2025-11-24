@@ -239,11 +239,6 @@ export default function AdminUsersPage() {
     return false;
   };
 
-  const canModifyUser = (u: any) => {
-    return canChangeRole(u) || canActivateDeactivate(u) || canDelete(u);
-  };
-
-
   const handlePasswordReset = async (userId: number) => {
     try {
       await triggerPasswordReset(userId);
