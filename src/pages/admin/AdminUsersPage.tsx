@@ -127,13 +127,17 @@ export default function AdminUsersPage() {
 
   const mutCreate = useMutation({
     mutationFn: () => createUser({ name: name.trim(), email: email.trim().toLowerCase(), role, region: region || undefined }),
-    onSuccess: () => {
+    onSuccess: (data: any) => {
       setName("");
       setEmail("");
       setRole("staff");
       setRegion("");
       qc.invalidateQueries({ queryKey: ["admin-users"] });
-      toast.show("User created successfully");
+      if (data?.invite_sent === false) {
+        toast.show("User created, but invite email failed. Use Reset Password to resend.");
+      } else {
+        toast.show("User created. Invite email sent to set password.");
+      }
     },
     onError: (e: any) => toast.show(e?.response?.data?.detail || "Create failed"),
   });
@@ -158,6 +162,10 @@ export default function AdminUsersPage() {
   });
 
   const toggleActive = (u: any) => {
+    if (!canActivateDeactivate(u)) {
+      toast.show("Insufficient permissions");
+      return;
+    }
     if (currentUser?.id === u.id) {
       toast.show("Cannot modify yourself");
       return;
@@ -212,13 +220,19 @@ export default function AdminUsersPage() {
   const canChangeRole = (u: any) => {
     if (!currentUser) return false;
     if (currentUser.id === u.id) return false;
+    if (u.role === "super_admin") return false;
     return currentUser.role === "super_admin";
   };
+
+  const canCreateUsers = currentUser?.role === "admin" || currentUser?.role === "super_admin";
 
   const canActivateDeactivate = (u: any) => {
     if (!currentUser) return false;
     if (currentUser.id === u.id) return false;
-    if (currentUser.role === "super_admin") return true;
+    if (u.role === "super_admin") return false;
+    if (currentUser.role === "super_admin") {
+      return u.role === "staff" || u.role === "admin" || u.role === "citizen";
+    }
     if (currentUser.role === "admin") {
       return u.role === "staff" || u.role === "citizen";
     }
@@ -232,20 +246,59 @@ export default function AdminUsersPage() {
     if (!currentUser) return false;
     if (currentUser.id === u.id) return false;
     if (u.role === "super_admin") return false;
-    if (currentUser.role === "super_admin") return true;
+    if (currentUser.role === "super_admin") {
+      return u.role === "staff" || u.role === "admin" || u.role === "citizen";
+    }
     if (currentUser.role === "admin") {
       return u.role === "staff" || u.role === "citizen";
     }
     return false;
   };
 
+  const canResetPassword = (u: any) => {
+    if (!currentUser) return false;
+    if (currentUser.id === u.id) return true;
+    if (u.role === "super_admin") return false;
+    if (currentUser.role === "super_admin") {
+      return u.role === "staff" || u.role === "admin" || u.role === "citizen";
+    }
+    if (currentUser.role === "admin") {
+      return u.role === "staff" || u.role === "citizen";
+    }
+    if (currentUser.role === "staff") {
+      return u.role === "citizen";
+    }
+    return false;
+  };
+
   const handlePasswordReset = async (userId: number) => {
+    const target = users.find((u: any) => u.id === userId);
+    if (target && !canResetPassword(target)) {
+      toast.show("Insufficient permissions");
+      return;
+    }
     try {
       await triggerPasswordReset(userId);
       toast.show("Password reset email sent");
     } catch (e: any) {
       toast.show(e?.response?.data?.detail || "Failed to send reset email");
     }
+  };
+
+  const handleCreateUser = () => {
+    if (!canCreateUsers) {
+      toast.show("Insufficient permissions");
+      return;
+    }
+    if (currentUser?.role === "admin" && role !== "staff") {
+      toast.show("Admin can only create staff users");
+      return;
+    }
+    if (role === "super_admin") {
+      toast.show("Cannot create super admin");
+      return;
+    }
+    mutCreate.mutate();
   };
 
   const handleExportCSV = () => {
@@ -296,8 +349,8 @@ export default function AdminUsersPage() {
               ? "text-indigo-600 border-b-2 border-indigo-600" 
               : "text-gray-600 hover:text-gray-900"
           }`}
-        >
-          Staff & Admins ({staffAndAdmins.length})
+          >
+          {currentUser?.role === "staff" ? `Staff (${staffAndAdmins.length})` : `Staff & Admins (${staffAndAdmins.length})`}
         </button>
         <button
           onClick={() => {
@@ -314,9 +367,11 @@ export default function AdminUsersPage() {
         </button>
       </div>
 
-      {activeTab === "staff" && (
+      {activeTab === "staff" && canCreateUsers && (
         <div className="rounded-2xl border bg-white p-5 shadow-lg space-y-4">
-          <h3 className="text-lg font-semibold text-gray-800">Create New Staff/Admin</h3>
+          <h3 className="text-lg font-semibold text-gray-800">
+            {currentUser?.role === "super_admin" ? "Create New Staff/Admin" : "Create New Staff"}
+          </h3>
           <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
             <Input
               value={name}
@@ -350,7 +405,7 @@ export default function AdminUsersPage() {
               ))}
             </select>
             <Button
-              onClick={() => mutCreate.mutate()}
+              onClick={handleCreateUser}
               disabled={mutCreate.isPending || name.trim().length < 2 || !email.includes("@")}
             >
               {mutCreate.isPending ? "Creating…" : "Create User"}
@@ -377,8 +432,12 @@ export default function AdminUsersPage() {
             >
               <option value="">All Roles</option>
               <option value="staff">Staff</option>
-              <option value="admin">Admin</option>
-              <option value="super_admin">Super Admin</option>
+              {(currentUser?.role === "admin" || currentUser?.role === "super_admin") && (
+                <option value="admin">Admin</option>
+              )}
+              {currentUser?.role === "super_admin" && (
+                <option value="super_admin">Super Admin</option>
+              )}
             </select>
           )}
           <select
@@ -510,12 +569,14 @@ export default function AdminUsersPage() {
                       {["staff", "admin", "super_admin"].includes(u.role) ? (
                         <div className="flex items-start gap-2">
                           <UserRegionsDisplay regions={u.regions || []} />
-                          <button
-                            onClick={() => setRegionsModal({ userId: u.id, userName: u.name || u.email })}
-                            className="text-indigo-600 hover:text-indigo-800 text-xs font-medium hover:underline ml-2"
-                          >
-                            Manage
-                          </button>
+                          {(currentUser?.role === "admin" || currentUser?.role === "super_admin") && (
+                            <button
+                              onClick={() => setRegionsModal({ userId: u.id, userName: u.name || u.email })}
+                              className="text-indigo-600 hover:text-indigo-800 text-xs font-medium hover:underline ml-2"
+                            >
+                              Manage
+                            </button>
+                          )}
                         </div>
                       ) : (
                         <span className="text-gray-400">—</span>
@@ -564,7 +625,7 @@ export default function AdminUsersPage() {
                   </td>
                   <td className="p-3 align-top">
                     <div className="flex flex-col gap-1">
-                      {(currentUser?.role === "admin" || currentUser?.role === "super_admin" || currentUser?.role === "staff" || currentUser?.id === u.id) && (
+                      {canResetPassword(u) && (
                         <button
                           onClick={() => handlePasswordReset(u.id)}
                           className="text-indigo-600 hover:text-indigo-800 text-xs font-medium hover:underline text-left"
@@ -750,7 +811,7 @@ export default function AdminUsersPage() {
         onClose={() => setDeleteConfirm(null)}
         onConfirm={() => deleteConfirm && mutDelete.mutate(deleteConfirm.id)}
         title="Delete User"
-        message={`Are you sure you want to delete "${deleteConfirm?.name}"? This action cannot be undone.`}
+        message={`Delete "${deleteConfirm?.name}" permanently? This only works if they have no linked issues or comments. Otherwise use Deactivate. This cannot be undone.`}
         confirmText="Delete"
         cancelText="Cancel"
         variant="danger"
